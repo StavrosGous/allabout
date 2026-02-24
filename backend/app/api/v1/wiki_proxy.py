@@ -76,12 +76,22 @@ async def get_wikipedia_full_text(title: str):
 async def fetch_wikipedia_and_store(slug: str, title: Optional[str] = Query(None)):
     """
     Fetch Wikipedia content for a knowledge node and store it.
-    If the node already has full_content, returns cached version unless force=true.
+    If the node already has full_content, returns cached version.
+    If the node doesn't exist yet, creates it automatically.
     Uses the knowledge node's title if no explicit title is given.
     """
     node = await KnowledgeNode.find_one(KnowledgeNode.slug == slug)
     if not node:
-        raise HTTPException(status_code=404, detail="Knowledge node not found")
+        # Auto-create a knowledge node for this Wikipedia topic
+        display_title = (title or slug).replace("-", " ").title()
+        node = KnowledgeNode(
+            slug=slug,
+            title=display_title,
+            summary="",
+            node_type="concept",
+            tags=["wikipedia"],
+        )
+        await node.insert()
 
     # If already has content, return it
     if node.full_content:

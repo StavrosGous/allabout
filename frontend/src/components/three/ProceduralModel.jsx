@@ -51,10 +51,11 @@ function AnimatedRotate({ children, anim, hovered }) {
 
 function AnimatedPulseScale({ children, anim }) {
   const ref = useRef()
-  useFrame((state) => {
+  const timeRef = useRef(0)
+  useFrame((_, delta) => {
     if (!ref.current) return
-    const t = state.clock.elapsedTime
-    const s = 1 + Math.sin(t * (anim.speed || 0.5)) * (anim.amount || 0.02)
+    timeRef.current += delta
+    const s = 1 + Math.sin(timeRef.current * (anim.speed || 0.5)) * (anim.amount || 0.02)
     ref.current.scale.setScalar(s)
   })
   return <group ref={ref}>{children}</group>
@@ -62,21 +63,24 @@ function AnimatedPulseScale({ children, anim }) {
 
 function AnimatedSineOffset({ children, anim }) {
   const ref = useRef()
+  const timeRef = useRef(0)
   const axis = anim.axis || 'z'
-  useFrame((state) => {
+  useFrame((_, delta) => {
     if (!ref.current) return
-    const t = state.clock.elapsedTime
-    ref.current.rotation[axis] = Math.sin(t * (anim.speed || 0.5)) * (anim.amount || 0.1)
+    timeRef.current += delta
+    ref.current.rotation[axis] = Math.sin(timeRef.current * (anim.speed || 0.5)) * (anim.amount || 0.1)
   })
   return <group ref={ref}>{children}</group>
 }
 
 function AnimatedSineRotation({ children, anim }) {
   const ref = useRef()
+  const timeRef = useRef(0)
   const axis = anim.axis || 'x'
-  useFrame((state) => {
+  useFrame((_, delta) => {
     if (!ref.current) return
-    ref.current.rotation[axis] = Math.sin(state.clock.elapsedTime * (anim.speed || 0.3)) * (anim.amount || 0.05)
+    timeRef.current += delta
+    ref.current.rotation[axis] = Math.sin(timeRef.current * (anim.speed || 0.3)) * (anim.amount || 0.05)
   })
   return <group ref={ref}>{children}</group>
 }
@@ -472,11 +476,13 @@ function GenAtpSynthaseRing({ params }) {
 
 function ElectronOrbitElectron({ orbit, index }) {
   const ref = useRef()
+  const timeRef = useRef(0)
   const { radius, tilt = [0, 0, 0], color = '#4488ff', speed = 1.5 } = orbit
 
-  useFrame((state) => {
+  useFrame((_, delta) => {
     if (!ref.current) return
-    const t = state.clock.elapsedTime
+    timeRef.current += delta
+    const t = timeRef.current
     const s = speed
     // Simple parametric orbit in the tilted plane
     if (index === 0) {

@@ -47,8 +47,27 @@ export default function SearchBar() {
       // Otherwise just show info (the scene might not exist for every node)
       console.log('Knowledge node:', result.slug)
     } else if (result.type === 'wikipedia') {
-      // For Wikipedia results, we could create a new node or just display
-      console.log('Wikipedia result:', result.title)
+      // Create a knowledge node and fetch Wikipedia content for it
+      const wikiSlug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      try {
+        const res = await fetch(
+          `/api/v1/wiki-proxy/fetch-and-store/${wikiSlug}?title=${encodeURIComponent(result.title)}`,
+          { method: 'POST' },
+        )
+        if (res.ok) {
+          const data = await res.json()
+          // Try to load the scene if it exists, otherwise just inform the user
+          const sceneRes = await fetch(`/api/v1/scenes/${wikiSlug}`)
+          if (sceneRes.ok) {
+            await loadScene(wikiSlug, false)
+            return
+          }
+          // No scene for this topic — content was saved for when a scene is created
+          alert(`Saved Wikipedia content for "${data.title}". No matching scene found yet.`)
+        }
+      } catch (err) {
+        console.error('Failed to fetch Wikipedia content:', err)
+      }
     }
   }
 

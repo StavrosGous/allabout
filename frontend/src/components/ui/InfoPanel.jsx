@@ -13,21 +13,23 @@ export default function InfoPanel() {
   const [saving, setSaving] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
-  if (!selectedObjectId || !sceneData) return null
-
-  const obj = sceneData.objects.find((o) => o.id === selectedObjectId)
-  if (!obj) return null
-
-  const kn = obj.knowledge_node_id
-    ? sceneData.knowledge_nodes?.[obj.knowledge_node_id]
+  // Derive obj and kn BEFORE hooks (no early returns before hooks!)
+  const obj = selectedObjectId && sceneData
+    ? sceneData.objects.find((o) => o.id === selectedObjectId)
     : null
+
+  const kn = obj?.knowledge_node_id
+    ? sceneData?.knowledge_nodes?.[obj.knowledge_node_id]
+    : null
+
+  const knSlug = kn?.slug || null
 
   // Fetch Wikipedia content when an object with a knowledge node is selected
   const loadContent = useCallback(async () => {
-    if (!kn?.slug) return
+    if (!knSlug) return
     setWikiLoading(true)
     try {
-      const data = await getNodeContent(kn.slug)
+      const data = await getNodeContent(knSlug)
       if (data?.full_content) {
         setWikiContent(data.full_content)
       } else {
@@ -37,16 +39,19 @@ export default function InfoPanel() {
       setWikiContent(null)
     }
     setWikiLoading(false)
-  }, [kn?.slug])
+  }, [knSlug, getNodeContent])
 
   useEffect(() => {
     setWikiContent(null)
     setEditing(false)
     setExpanded(false)
-    if (kn?.slug) {
+    if (knSlug) {
       loadContent()
     }
-  }, [selectedObjectId, kn?.slug])
+  }, [selectedObjectId, knSlug, loadContent])
+
+  // Early return AFTER all hooks
+  if (!selectedObjectId || !sceneData || !obj) return null
 
   const handleFetchWiki = async () => {
     if (!kn?.slug) return

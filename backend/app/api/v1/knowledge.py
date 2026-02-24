@@ -41,7 +41,11 @@ async def list_knowledge_nodes(
 ):
     query = {}
     if q:
-        query["$text"] = {"$search": q}
+        query["$or"] = [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"summary": {"$regex": q, "$options": "i"}},
+            {"tags": {"$regex": q, "$options": "i"}},
+        ]
     if tag:
         query["tags"] = tag
     if node_type:

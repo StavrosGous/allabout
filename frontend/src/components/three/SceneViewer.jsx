@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useMemo } from 'react'
-import { Stars, AdaptiveDpr, ContactShadows } from '@react-three/drei'
+import { Stars, AdaptiveDpr } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
 import SceneContent from './SceneContent.jsx'
 import CameraRig from './CameraRig.jsx'
@@ -95,7 +95,7 @@ export default function SceneViewer({ sceneData }) {
       style={{ width: '100%', height: '100%' }}
       gl={{ antialias: true, alpha: false, toneMapping: 3 /* ACESFilmic */ }}
       dpr={[1, 2]}
-      shadows
+      shadows="percentage"
     >
       <color attach="background" args={[lighting.bg]} />
       <AdaptiveDpr pixelated />
@@ -149,18 +149,6 @@ export default function SceneViewer({ sceneData }) {
       {/* Fog */}
       {env.fog && (
         <fog attach="fog" args={[env.fog.color || '#000', env.fog.near || 5, env.fog.far || 30]} />
-      )}
-
-      {/* Contact shadows for lab level */}
-      {(depth || 0) === 0 && (
-        <ContactShadows
-          position={[0, -0.01, 0]}
-          opacity={0.4}
-          scale={20}
-          blur={2}
-          far={4}
-          color="#000022"
-        />
       )}
 
       {/* Camera controls */}
