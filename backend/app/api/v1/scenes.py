@@ -94,6 +94,7 @@ async def get_scene(slug: str):
                 "node_type": n.node_type,
                 "tags": n.tags,
                 "wikipedia_url": n.wikipedia_url,
+                "image_url": n.image_url,
             }
 
     # Batch-fetch assets

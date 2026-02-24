@@ -12,6 +12,7 @@ class KnowledgeNode(Document):
     full_content: str = ""  # Markdown
     wikidata_id: Optional[str] = None
     wikipedia_url: Optional[str] = None
+    image_url: Optional[str] = None  # Wikipedia thumbnail / main image URL
     node_type: str = "concept"  # concept | object | process | person | place
     properties: Dict[str, Any] = Field(default_factory=dict)
     tags: List[str] = Field(default_factory=list)

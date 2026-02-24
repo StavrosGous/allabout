@@ -18,6 +18,9 @@ function Geometry({ type, args }) {
     case 'torus':     return <torusGeometry args={args} />
     case 'ring':      return <ringGeometry args={args} />
     case 'cone':      return <coneGeometry args={args} />
+    case 'circle':    return <circleGeometry args={args} />
+    case 'plane':     return <planeGeometry args={args} />
+    case 'tube':      return <tubeGeometry args={args} />
     default:          return <boxGeometry args={args ?? [0.5, 0.5, 0.5]} />
   }
 }

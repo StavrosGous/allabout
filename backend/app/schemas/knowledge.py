@@ -37,6 +37,7 @@ class KnowledgeNodeResponse(BaseModel):
     full_content: str
     wikidata_id: Optional[str]
     wikipedia_url: Optional[str]
+    image_url: Optional[str]
     node_type: str
     properties: Dict[str, Any]
     tags: List[str]

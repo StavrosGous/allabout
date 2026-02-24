@@ -49,6 +49,16 @@ const useSceneStore = create((set, get) => ({
     set({ zoomStack: newStack })
   },
 
+  // Go back to home (no scene loaded)
+  goHome: () => set({
+    sceneData: null,
+    zoomStack: [],
+    focusedObjectId: null,
+    selectedObjectId: null,
+    loading: false,
+    error: null,
+  }),
+
   setFocusedObject: (id) => set({ focusedObjectId: id }),
   setSelectedObject: (id) => set({ selectedObjectId: id }),
   clearSelection: () => set({ selectedObjectId: null }),

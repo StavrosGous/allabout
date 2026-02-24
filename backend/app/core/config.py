@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # Wikipedia
     wiki_user_agent: str = "AllAbout/0.1 (https://github.com/allabout)"
 
+    # LLM (Poe / OpenAI-compatible API)
+    poe_api_key: str = ""
+    poe_api_base: str = "https://api.poe.com/v1"
+    poe_model: str = "claude-sonnet-4.5"
+
     # CORS
     backend_cors_origins: List[str] = ["http://localhost:5173"]
 

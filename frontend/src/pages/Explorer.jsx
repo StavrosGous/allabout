@@ -6,12 +6,13 @@ import Breadcrumbs from '../components/ui/Breadcrumbs.jsx'
 import SceneTitle from '../components/ui/SceneTitle.jsx'
 import SearchBar from '../components/ui/SearchBar.jsx'
 import EditorPanel from '../components/ui/EditorPanel.jsx'
+import CreateObjectOverlay from '../components/ui/CreateObjectOverlay.jsx'
+import HomePage from '../components/ui/HomePage.jsx'
 import useSceneStore from '../stores/sceneStore.js'
 import useEditorStore from '../stores/editorStore.js'
 
-export default function Explorer({ sceneSlug }) {
+export default function Explorer() {
   const { slug: urlSlug } = useParams()
-  const targetSlug = urlSlug || sceneSlug || 'science-lab'
 
   const { sceneData, loading, error, loadScene, zoomStack } = useSceneStore()
   const { editorOpen, toggleEditor, loadModels, loadScenes } = useEditorStore()
@@ -24,12 +25,15 @@ export default function Explorer({ sceneSlug }) {
     }
   }, [editorOpen])
 
+  // If URL has a slug, load that scene
   useEffect(() => {
-    // Only load if we don't already have this scene
-    if (!sceneData || sceneData.slug !== targetSlug) {
-      loadScene(targetSlug, zoomStack.length === 0)
+    if (urlSlug && (!sceneData || sceneData.slug !== urlSlug)) {
+      loadScene(urlSlug, zoomStack.length === 0)
     }
-  }, [targetSlug])
+  }, [urlSlug])
+
+  // Determine if we should show the home page (no scene loaded and no URL slug)
+  const showHome = !sceneData && !loading && !error && !urlSlug
 
   if (loading && !sceneData) {
     return (
@@ -48,7 +52,7 @@ export default function Explorer({ sceneSlug }) {
     )
   }
 
-  if (error) {
+  if (error && !showHome) {
     return (
       <div style={{
         width: '100%',
@@ -66,7 +70,7 @@ export default function Explorer({ sceneSlug }) {
           Make sure the backend is running and the database is seeded.
         </div>
         <button
-          onClick={() => loadScene(targetSlug, true)}
+          onClick={() => urlSlug && loadScene(urlSlug, true)}
           style={{
             marginTop: 8,
             padding: '8px 20px',
@@ -83,6 +87,18 @@ export default function Explorer({ sceneSlug }) {
     )
   }
 
+  // ---- Home page (no scene loaded) ----
+  if (showHome) {
+    return (
+      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <HomePage />
+        <SearchBar />
+        <Breadcrumbs />
+      </div>
+    )
+  }
+
+  // ---- Scene view ----
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <SceneViewer sceneData={sceneData} />
@@ -119,6 +135,9 @@ export default function Explorer({ sceneSlug }) {
 
       {/* Editor panel (slides in from left) */}
       {editorOpen && <EditorPanel sceneSlug={sceneData?.slug} />}
+
+      {/* Create Object overlay */}
+      <CreateObjectOverlay />
 
       <Breadcrumbs />
       <InfoPanel />

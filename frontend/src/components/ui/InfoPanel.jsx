@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import useSceneStore from '../../stores/sceneStore.js'
 import useEditorStore from '../../stores/editorStore.js'
+import DeepDivePrompt from './DeepDivePrompt.jsx'
 
 export default function InfoPanel() {
   const { sceneData, selectedObjectId, clearSelection, zoomInto } = useSceneStore()
   const { fetchWikiContent, updateNodeContent, getNodeContent } = useEditorStore()
 
   const [wikiContent, setWikiContent] = useState(null)
+  const [wikiImage, setWikiImage] = useState(null)
   const [wikiLoading, setWikiLoading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState('')
   const [saving, setSaving] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [showDeepDive, setShowDeepDive] = useState(false)
+  const [deepDiveChecking, setDeepDiveChecking] = useState(false)
 
   // Derive obj and kn BEFORE hooks (no early returns before hooks!)
   const obj = selectedObjectId && sceneData
@@ -35,6 +39,9 @@ export default function InfoPanel() {
       } else {
         setWikiContent(null)
       }
+      if (data?.image_url) {
+        setWikiImage(data.image_url)
+      }
     } catch {
       setWikiContent(null)
     }
@@ -43,8 +50,15 @@ export default function InfoPanel() {
 
   useEffect(() => {
     setWikiContent(null)
+    setWikiImage(null)
     setEditing(false)
     setExpanded(false)
+    setShowDeepDive(false)
+    setDeepDiveChecking(false)
+    // Pre-populate image from scene data if available
+    if (kn?.image_url) {
+      setWikiImage(kn.image_url)
+    }
     if (knSlug) {
       loadContent()
     }
@@ -59,6 +73,9 @@ export default function InfoPanel() {
     const result = await fetchWikiContent(kn.slug, kn.title)
     if (result?.full_content) {
       setWikiContent(result.full_content)
+    }
+    if (result?.image_url) {
+      setWikiImage(result.image_url)
     }
     setWikiLoading(false)
   }
@@ -153,6 +170,30 @@ export default function InfoPanel() {
         <p style={{ fontSize: 14, lineHeight: 1.6, color: '#ccc', marginBottom: 16 }}>
           {kn.summary}
         </p>
+      )}
+
+      {/* Wikipedia image */}
+      {wikiImage && (
+        <div style={{
+          marginBottom: 16, borderRadius: 8, overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <img
+            src={wikiImage}
+            alt={kn?.title || obj.label}
+            style={{
+              width: '100%', maxHeight: 220, objectFit: 'cover',
+              display: 'block', background: 'rgba(255,255,255,0.03)',
+            }}
+            onError={(e) => { e.target.style.display = 'none' }}
+          />
+          <div style={{
+            padding: '4px 8px', fontSize: 10, color: '#666',
+            background: 'rgba(0,0,0,0.3)', textAlign: 'center',
+          }}>
+            📷 Real-world reference
+          </div>
+        </div>
       )}
 
       {/* Properties */}
@@ -343,23 +384,77 @@ export default function InfoPanel() {
         </a>
       )}
 
-      {/* Zoom button */}
-      {obj.interaction_type === 'zoom_into' && obj.zoom_target_scene_id && (
-        <button
-          onClick={handleZoom}
-          style={{
-            display: 'block', width: '100%', padding: '10px 16px', marginTop: 8,
-            background: 'linear-gradient(135deg, #00ff88, #00cc66)',
-            border: 'none', borderRadius: 8, color: '#000',
-            fontSize: 14, fontWeight: 600, cursor: 'pointer',
-            transition: 'transform 0.15s',
-          }}
-          onMouseOver={(e) => e.target.style.transform = 'scale(1.02)'}
-          onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-        >
-          🔬 Go Deeper →
-        </button>
-      )}
+      {/* Go Deeper — always shown for every object */}
+      <div style={{ marginTop: 8 }}>
+        {obj.interaction_type === 'zoom_into' && obj.zoom_target_scene_id ? (
+          /* Has a child scene → direct zoom button */
+          <button
+            onClick={handleZoom}
+            style={{
+              display: 'block', width: '100%', padding: '10px 16px',
+              background: 'linear-gradient(135deg, #00ff88, #00cc66)',
+              border: 'none', borderRadius: 8, color: '#000',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              transition: 'transform 0.15s',
+            }}
+            onMouseOver={(e) => e.target.style.transform = 'scale(1.02)'}
+            onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+          >
+            🔬 Go Deeper →
+          </button>
+        ) : !showDeepDive ? (
+          /* No child scene known yet → check if one exists, or show prompt */
+          <button
+            onClick={async () => {
+              // Check if a scene already exists for this topic
+              const topic = kn?.title || obj.label
+              const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+              setDeepDiveChecking(true)
+              try {
+                const res = await fetch(`/api/v1/scenes/${encodeURIComponent(slug)}`)
+                if (res.ok) {
+                  // Scene exists → navigate directly
+                  clearSelection()
+                  await zoomInto(slug)
+                  return
+                }
+              } catch { /* scene doesn't exist */ }
+              setDeepDiveChecking(false)
+              setShowDeepDive(true)
+            }}
+            disabled={deepDiveChecking}
+            style={{
+              display: 'block', width: '100%', padding: '10px 16px',
+              background: 'linear-gradient(135deg, rgba(68,136,255,0.15), rgba(0,255,136,0.08))',
+              border: '1px solid rgba(68,136,255,0.3)',
+              borderRadius: 8, color: '#88bbff',
+              fontSize: 14, fontWeight: 600,
+              cursor: deepDiveChecking ? 'wait' : 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(68,136,255,0.5)'
+              e.currentTarget.style.transform = 'scale(1.02)'
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(68,136,255,0.3)'
+              e.currentTarget.style.transform = 'scale(1)'
+            }}
+          >
+            {deepDiveChecking ? '⏳ Checking...' : '🔬 Go Deeper →'}
+          </button>
+        ) : (
+          /* Show the generate/build prompt */
+          <DeepDivePrompt
+            objectLabel={obj.label}
+            knowledgeNode={kn}
+            onClose={() => {
+              setShowDeepDive(false)
+              clearSelection()
+            }}
+          />
+        )}
+      </div>
     </div>
   )
 }

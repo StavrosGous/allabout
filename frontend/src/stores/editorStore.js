@@ -5,6 +5,20 @@ const useEditorStore = create((set, get) => ({
   editorOpen: false,
   editingObjectId: null,
 
+  // Drag mode
+  dragMode: false,
+  draggingObjectId: null,
+
+  // Create object overlay
+  createOverlayOpen: false,
+  createMode: 'shapes', // 'shapes' | 'ai'
+
+  // AI generation state
+  aiPrompt: '',
+  aiGenerating: false,
+  aiError: null,
+  aiPreview: null, // Generated model definition preview
+
   // Search state
   searchQuery: '',
   searchResults: [],
@@ -26,9 +40,85 @@ const useEditorStore = create((set, get) => ({
   },
 
   toggleEditor: () => set((s) => ({ editorOpen: !s.editorOpen, editingObjectId: null })),
-  closeEditor: () => set({ editorOpen: false, editingObjectId: null }),
+  closeEditor: () => set({ editorOpen: false, editingObjectId: null, dragMode: false, createOverlayOpen: false }),
 
   setEditingObject: (id) => set({ editingObjectId: id }),
+
+  // Drag mode
+  toggleDragMode: () => set((s) => ({ dragMode: !s.dragMode })),
+  setDraggingObjectId: (id) => set({ draggingObjectId: id }),
+
+  // Create overlay
+  openCreateOverlay: () => set({ createOverlayOpen: true, createMode: 'shapes', aiPreview: null, aiError: null, aiPrompt: '' }),
+  closeCreateOverlay: () => set({ createOverlayOpen: false, aiPreview: null, aiError: null, aiPrompt: '' }),
+  setCreateMode: (mode) => set({ createMode: mode, aiPreview: null, aiError: null }),
+
+  // AI generation
+  setAiPrompt: (prompt) => set({ aiPrompt: prompt }),
+
+  generateWithAI: async (description) => {
+    set({ aiGenerating: true, aiError: null, aiPreview: null })
+    try {
+      const res = await fetch('/api/v1/generate/model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Generation failed' }))
+        throw new Error(err.detail || 'Generation failed')
+      }
+      const data = await res.json()
+      set({ aiPreview: data, aiGenerating: false })
+      return data
+    } catch (err) {
+      set({ aiError: err.message, aiGenerating: false })
+      return null
+    }
+  },
+
+  addAIGeneratedObject: async (sceneSlug, modelDef, label, position) => {
+    // First, save the model definition to the database
+    try {
+      const modelRes = await fetch('/api/v1/models/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(modelDef),
+      })
+      if (!modelRes.ok) {
+        // If slug conflict, try with a random suffix
+        modelDef.slug = modelDef.slug + '-' + Math.random().toString(36).slice(2, 6)
+        const retryRes = await fetch('/api/v1/models/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(modelDef),
+        })
+        if (!retryRes.ok) throw new Error('Failed to save model')
+      }
+
+      // Then add the object to the scene
+      const objRes = await fetch(`/api/v1/scenes/${sceneSlug}/objects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: label || modelDef.name,
+          model_slug: modelDef.slug,
+          transform: {
+            position: position || [0, 1, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+          },
+          interaction_type: 'popup_info',
+          highlight_color: '#667788',
+        }),
+      })
+      if (!objRes.ok) throw new Error('Failed to add object to scene')
+      return await objRes.json()
+    } catch (err) {
+      console.error('Add AI object error:', err)
+      return null
+    }
+  },
 
   setNewObjectForm: (updates) => set((s) => ({
     newObjectForm: { ...s.newObjectForm, ...updates },
@@ -227,6 +317,74 @@ const useEditorStore = create((set, get) => ({
       return await res.json()
     } catch (err) {
       console.error('Get content error:', err)
+      return null
+    }
+  },
+
+  // --- AI Scene Generation ---
+  sceneGenerating: false,
+  sceneGenError: null,
+  sceneRefining: false,
+
+  generateScene: async (topic) => {
+    set({ sceneGenerating: true, sceneGenError: null })
+    try {
+      const res = await fetch('/api/v1/generate/scene', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Scene generation failed' }))
+        throw new Error(err.detail || 'Scene generation failed')
+      }
+      const data = await res.json()
+      set({ sceneGenerating: false })
+      return data
+    } catch (err) {
+      set({ sceneGenError: err.message, sceneGenerating: false })
+      return null
+    }
+  },
+
+  rebuildScene: async (slug) => {
+    set({ sceneRefining: true, sceneGenError: null })
+    try {
+      const res = await fetch('/api/v1/generate/scene/rebuild', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Rebuild failed' }))
+        throw new Error(err.detail || 'Rebuild failed')
+      }
+      const data = await res.json()
+      set({ sceneRefining: false })
+      return data
+    } catch (err) {
+      set({ sceneGenError: err.message, sceneRefining: false })
+      return null
+    }
+  },
+
+  refineScene: async (slug, feedback) => {
+    set({ sceneRefining: true, sceneGenError: null })
+    try {
+      const res = await fetch('/api/v1/generate/scene/refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, feedback }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Refinement failed' }))
+        throw new Error(err.detail || 'Refinement failed')
+      }
+      const data = await res.json()
+      set({ sceneRefining: false })
+      return data
+    } catch (err) {
+      set({ sceneGenError: err.message, sceneRefining: false })
       return null
     }
   },

@@ -9,6 +9,7 @@ from app.api.v1.knowledge import router as knowledge_router
 from app.api.v1.scenes import router as scenes_router
 from app.api.v1.wiki_proxy import router as wiki_router
 from app.api.v1.models import router as models_router
+from app.api.v1.generate import router as generate_router
 
 
 @asynccontextmanager
@@ -43,6 +44,7 @@ app.include_router(knowledge_router, prefix="/api/v1")
 app.include_router(scenes_router, prefix="/api/v1")
 app.include_router(wiki_router, prefix="/api/v1")
 app.include_router(models_router, prefix="/api/v1")
+app.include_router(generate_router, prefix="/api/v1")
 
 
 @app.get("/api/health")

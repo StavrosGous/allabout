@@ -20,6 +20,7 @@ def _to_response(node: KnowledgeNode) -> KnowledgeNodeResponse:
         full_content=node.full_content,
         wikidata_id=node.wikidata_id,
         wikipedia_url=node.wikipedia_url,
+        image_url=node.image_url,
         node_type=node.node_type,
         properties=node.properties,
         tags=node.tags,
@@ -154,4 +155,5 @@ async def get_content(node_id: str):
         "summary": node.summary,
         "full_content": node.full_content,
         "wikipedia_url": node.wikipedia_url,
+        "image_url": node.image_url,
     }

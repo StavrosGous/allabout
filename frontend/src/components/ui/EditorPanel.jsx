@@ -301,7 +301,7 @@ function ObjectListSection({ sceneData, onRefresh }) {
 }
 
 export default function EditorPanel() {
-  const { editorOpen, closeEditor, loadModels } = useEditorStore()
+  const { editorOpen, closeEditor, loadModels, dragMode, toggleDragMode, openCreateOverlay } = useEditorStore()
   const { sceneData, loadScene } = useSceneStore()
 
   useEffect(() => {
@@ -350,6 +350,64 @@ export default function EditorPanel() {
           background: 'none', border: 'none', color: '#666', fontSize: 18, cursor: 'pointer',
         }}>×</button>
       </div>
+
+      {/* Toolbar */}
+      <div style={{
+        padding: '10px 16px',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex',
+        gap: 6,
+      }}>
+        {/* Create Object button */}
+        <button
+          onClick={openCreateOverlay}
+          style={{
+            flex: 1, padding: '9px 12px',
+            background: 'linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,204,102,0.1))',
+            border: '1px solid rgba(0,255,136,0.3)',
+            borderRadius: 8, color: '#00ff88',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+          Create Object
+        </button>
+
+        {/* Drag Mode toggle */}
+        <button
+          onClick={toggleDragMode}
+          title={dragMode ? 'Disable drag mode' : 'Enable drag mode — drag objects to reposition'}
+          style={{
+            padding: '9px 14px',
+            background: dragMode ? 'rgba(255,170,0,0.15)' : 'rgba(255,255,255,0.04)',
+            border: dragMode ? '1px solid rgba(255,170,0,0.4)' : '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 8,
+            color: dragMode ? '#ffaa00' : '#888',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 5,
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span style={{ fontSize: 14 }}>✥</span>
+          {dragMode ? 'Dragging' : 'Drag'}
+        </button>
+      </div>
+
+      {/* Drag mode info banner */}
+      {dragMode && (
+        <div style={{
+          padding: '8px 16px',
+          background: 'rgba(255,170,0,0.08)',
+          borderBottom: '1px solid rgba(255,170,0,0.15)',
+          fontSize: 11, color: '#ddaa44',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <span>✥</span>
+          Click and drag objects to reposition. Position saves automatically.
+        </div>
+      )}
 
       {/* Content */}
       <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>

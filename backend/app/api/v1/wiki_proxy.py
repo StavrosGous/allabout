@@ -100,6 +100,7 @@ async def fetch_wikipedia_and_store(slug: str, title: Optional[str] = Query(None
             "title": node.title,
             "full_content": node.full_content,
             "wikipedia_url": node.wikipedia_url,
+            "image_url": node.image_url,
             "cached": True,
         }
 
@@ -107,12 +108,13 @@ async def fetch_wikipedia_and_store(slug: str, title: Optional[str] = Query(None
     search_title = title or node.title
     try:
         wiki_url = None
+        image_url = None
         actual_title = search_title
         extract = ""
 
         # Helper: try to get summary + full text for a given title
         async def _try_fetch(t):
-            nonlocal wiki_url, actual_title, extract
+            nonlocal wiki_url, image_url, actual_title, extract
             async with httpx.AsyncClient() as client:
                 summary_resp = await client.get(
                     f"{WIKIPEDIA_API}/page/summary/{t}",
@@ -128,6 +130,11 @@ async def fetch_wikipedia_and_store(slug: str, title: Optional[str] = Query(None
                 actual_title = summary_data.get("title", t)
                 if not node.summary and summary_data.get("extract"):
                     node.summary = summary_data["extract"]
+                # Extract thumbnail / original image URL
+                if summary_data.get("originalimage", {}).get("source"):
+                    image_url = summary_data["originalimage"]["source"]
+                elif summary_data.get("thumbnail", {}).get("source"):
+                    image_url = summary_data["thumbnail"]["source"]
             else:
                 return False
 
@@ -187,6 +194,8 @@ async def fetch_wikipedia_and_store(slug: str, title: Optional[str] = Query(None
         node.full_content = extract
         if wiki_url:
             node.wikipedia_url = wiki_url
+        if image_url:
+            node.image_url = image_url
         node.updated_at = datetime.now(timezone.utc)
         await node.save()
 
@@ -195,6 +204,7 @@ async def fetch_wikipedia_and_store(slug: str, title: Optional[str] = Query(None
             "title": node.title,
             "full_content": node.full_content,
             "wikipedia_url": node.wikipedia_url,
+            "image_url": node.image_url,
             "cached": False,
         }
     except httpx.HTTPError as e:

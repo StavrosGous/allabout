@@ -5,7 +5,9 @@ import useSceneStore from '../../stores/sceneStore.js'
 export default function SearchBar() {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
-  const { searchResults, searchLoading, search } = useEditorStore()
+  const [noSceneForQuery, setNoSceneForQuery] = useState(false)
+  const [checkedQuery, setCheckedQuery] = useState('')
+  const { searchResults, searchLoading, search, generateScene, sceneGenerating, sceneGenError, toggleEditor, openCreateOverlay } = useEditorStore()
   const { loadScene } = useSceneStore()
   const inputRef = useRef(null)
   const containerRef = useRef(null)
@@ -13,12 +15,31 @@ export default function SearchBar() {
 
   const handleSearch = useCallback((value) => {
     setQuery(value)
+    setNoSceneForQuery(false)
+    setCheckedQuery('')
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       search(value)
       setOpen(true)
     }, 300)
   }, [search])
+
+  // After search completes, check if any result maps to an actual scene
+  useEffect(() => {
+    if (!searchLoading && open && query.length >= 2 && searchResults.length === 0) {
+      setNoSceneForQuery(true)
+      setCheckedQuery(query)
+    } else if (!searchLoading && open && query.length >= 2 && searchResults.length > 0) {
+      // Check if any result has a matching scene (local type results have slug, try loading them)
+      const hasLocal = searchResults.some((r) => r.type === 'local')
+      if (!hasLocal) {
+        setNoSceneForQuery(true)
+        setCheckedQuery(query)
+      } else {
+        setNoSceneForQuery(false)
+      }
+    }
+  }, [searchResults, searchLoading, open, query])
 
   // Close on outside click
   useEffect(() => {
@@ -44,10 +65,11 @@ export default function SearchBar() {
           return
         }
       } catch {}
-      // Otherwise just show info (the scene might not exist for every node)
-      console.log('Knowledge node:', result.slug)
+      // No scene for that node — show the no-scene prompt
+      setNoSceneForQuery(true)
+      setCheckedQuery(result.title)
+      setOpen(true)
     } else if (result.type === 'wikipedia') {
-      // Create a knowledge node and fetch Wikipedia content for it
       const wikiSlug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       try {
         const res = await fetch(
@@ -55,18 +77,41 @@ export default function SearchBar() {
           { method: 'POST' },
         )
         if (res.ok) {
-          const data = await res.json()
-          // Try to load the scene if it exists, otherwise just inform the user
           const sceneRes = await fetch(`/api/v1/scenes/${wikiSlug}`)
           if (sceneRes.ok) {
             await loadScene(wikiSlug, false)
             return
           }
-          // No scene for this topic — content was saved for when a scene is created
-          alert(`Saved Wikipedia content for "${data.title}". No matching scene found yet.`)
+          // No scene — show the create prompt
+          setNoSceneForQuery(true)
+          setCheckedQuery(result.title)
+          setOpen(true)
         }
       } catch (err) {
         console.error('Failed to fetch Wikipedia content:', err)
+      }
+    }
+  }
+
+  const handleCreateWithEditor = () => {
+    setOpen(false)
+    setQuery('')
+    toggleEditor()
+    openCreateOverlay()
+  }
+
+  const handleCreateWithAI = async () => {
+    const topic = checkedQuery || query
+    if (!topic) return
+
+    const result = await generateScene(topic)
+    if (result) {
+      setOpen(false)
+      setQuery('')
+      setNoSceneForQuery(false)
+
+      if (result.status === 'exists' || result.status === 'created') {
+        await loadScene(result.slug, false)
       }
     }
   }
@@ -88,7 +133,7 @@ export default function SearchBar() {
         background: 'rgba(10, 10, 20, 0.92)',
         backdropFilter: 'blur(16px)',
         border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: open && searchResults.length > 0 ? '10px 10px 0 0' : 10,
+        borderRadius: open && (searchResults.length > 0 || noSceneForQuery || sceneGenerating) ? '10px 10px 0 0' : 10,
         padding: '0 14px',
         transition: 'border-radius 0.15s',
       }}>
@@ -111,14 +156,14 @@ export default function SearchBar() {
             fontFamily: "'Inter', sans-serif",
           }}
         />
-        {searchLoading && (
+        {(searchLoading || sceneGenerating) && (
           <span style={{ color: '#00ff88', fontSize: 12, animation: 'pulse 1s infinite' }}>
-            ...
+            {sceneGenerating ? '⚙ Creating...' : '...'}
           </span>
         )}
-        {query && (
+        {query && !sceneGenerating && (
           <button
-            onClick={() => { setQuery(''); setOpen(false) }}
+            onClick={() => { setQuery(''); setOpen(false); setNoSceneForQuery(false) }}
             style={{
               background: 'none', border: 'none', color: '#666', cursor: 'pointer',
               fontSize: 16, padding: '4px 4px',
@@ -129,17 +174,18 @@ export default function SearchBar() {
         )}
       </div>
 
-      {/* Results dropdown */}
-      {open && searchResults.length > 0 && (
+      {/* Dropdown */}
+      {open && (searchResults.length > 0 || noSceneForQuery || sceneGenerating) && (
         <div style={{
           background: 'rgba(10, 10, 20, 0.95)',
           backdropFilter: 'blur(16px)',
           border: '1px solid rgba(255,255,255,0.12)',
           borderTop: 'none',
           borderRadius: '0 0 10px 10px',
-          maxHeight: 360,
+          maxHeight: 420,
           overflowY: 'auto',
         }}>
+          {/* Search results */}
           {searchResults.map((result, i) => (
             <button
               key={`${result.type}-${result.slug || result.title}-${i}`}
@@ -150,7 +196,7 @@ export default function SearchBar() {
                 textAlign: 'left',
                 background: 'none',
                 border: 'none',
-                borderBottom: i < searchResults.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
                 color: '#e0e0e0',
                 padding: '12px 16px',
                 cursor: 'pointer',
@@ -199,6 +245,148 @@ export default function SearchBar() {
               )}
             </button>
           ))}
+
+          {/* No scene found — offer creation */}
+          {noSceneForQuery && !sceneGenerating && (
+            <div style={{
+              padding: '16px',
+              borderTop: searchResults.length > 0 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+              }}>
+                <span style={{ fontSize: 18 }}>🔭</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#e0e0e0' }}>
+                    No scene found for "{checkedQuery || query}"
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                    Would you like to create one?
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                {/* Create with AI */}
+                <button
+                  onClick={handleCreateWithAI}
+                  style={{
+                    flex: 1,
+                    padding: '12px 14px',
+                    background: 'linear-gradient(135deg, rgba(68,136,255,0.2), rgba(34,102,221,0.15))',
+                    border: '1px solid rgba(68,136,255,0.4)',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(68,136,255,0.3), rgba(34,102,221,0.25))'
+                    e.currentTarget.style.borderColor = 'rgba(68,136,255,0.6)'
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(68,136,255,0.2), rgba(34,102,221,0.15))'
+                    e.currentTarget.style.borderColor = 'rgba(68,136,255,0.4)'
+                  }}
+                >
+                  <div style={{ fontSize: 16, marginBottom: 4 }}>✨</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#88bbff' }}>
+                    Generate with AI
+                  </div>
+                  <div style={{ fontSize: 10, color: '#667799', marginTop: 2 }}>
+                    Auto-create objects, models & info
+                  </div>
+                </button>
+
+                {/* Create from scratch */}
+                <button
+                  onClick={handleCreateWithEditor}
+                  style={{
+                    flex: 1,
+                    padding: '12px 14px',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(0,255,136,0.4)'
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                  }}
+                >
+                  <div style={{ fontSize: 16, marginBottom: 4 }}>✏️</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#cccccc' }}>
+                    Build from scratch
+                  </div>
+                  <div style={{ fontSize: 10, color: '#777', marginTop: 2 }}>
+                    Open editor & add objects manually
+                  </div>
+                </button>
+              </div>
+
+              {/* Error display */}
+              {sceneGenError && (
+                <div style={{
+                  marginTop: 10, padding: '8px 12px',
+                  background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.25)',
+                  borderRadius: 6, fontSize: 11, color: '#ff6666',
+                }}>
+                  {sceneGenError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Generating scene loading state */}
+          {sceneGenerating && (
+            <div style={{
+              padding: '20px 16px',
+              textAlign: 'center',
+            }}>
+              <div style={{
+                display: 'inline-block',
+                animation: 'spin 1.5s linear infinite',
+                fontSize: 24,
+                marginBottom: 10,
+              }}>
+                ⚙
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#88bbff' }}>
+                Generating scene with AI...
+              </div>
+              <div style={{ fontSize: 11, color: '#667799', marginTop: 4 }}>
+                Creating 3D models, knowledge nodes, and scene layout
+              </div>
+              <div style={{
+                marginTop: 12, height: 3, background: 'rgba(255,255,255,0.06)',
+                borderRadius: 2, overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%', background: 'linear-gradient(90deg, #4488ff, #00ff88)',
+                  borderRadius: 2,
+                  animation: 'loading-bar 2s ease-in-out infinite',
+                }} />
+              </div>
+
+              <style>{`
+                @keyframes spin {
+                  from { transform: rotate(0deg); }
+                  to { transform: rotate(360deg); }
+                }
+                @keyframes loading-bar {
+                  0% { width: 0%; margin-left: 0%; }
+                  50% { width: 60%; margin-left: 20%; }
+                  100% { width: 0%; margin-left: 100%; }
+                }
+              `}</style>
+            </div>
+          )}
         </div>
       )}
     </div>
