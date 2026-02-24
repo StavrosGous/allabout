@@ -1,0 +1,328 @@
+===========================================================
+  AllAbout — Immersive 3D Knowledge Platform — Project Plan
+===========================================================
+
+An interactive 3D encyclopedia where users explore knowledge by navigating
+and zooming through spatial scenes (e.g., science lab → microscope → cells
+→ molecules → atoms).
+
+Stack: React Three Fiber (frontend) + FastAPI on Uvicorn (backend) + MongoDB
+Content sourced from Wikipedia/Wikidata + user contributions.
+Anonymous browsing; login only for editing.
+
+-----------------------------------------------------------
+ARCHITECTURE OVERVIEW
+-----------------------------------------------------------
+
+Frontend:  React + React Three Fiber + drei + zustand
+Backend:   FastAPI running on Uvicorn (Python ASGI server)
+Database:  MongoDB (document store — naturally fits flexible schemas)
+Storage:   S3-compatible (MinIO for dev, S3/Cloudflare R2 for prod)
+3D Format: GLB with meshopt compression + KTX2 textures
+Cache:     Redis (Wikipedia/Wikidata response cache)
+Dev Env:   Docker Compose (MongoDB, MinIO, Redis, backend, frontend)
+
+-----------------------------------------------------------
+PHASE 1: PROJECT SCAFFOLDING
+-----------------------------------------------------------
+
+1. Initialize monorepo at /allabout:
+   - frontend/   (Vite + React + TypeScript)
+   - backend/    (FastAPI + Poetry or uv)
+   - docker/     (Dockerfiles + compose)
+
+2. Frontend dependencies:
+   - @react-three/fiber, @react-three/drei, @react-three/postprocessing
+   - zustand (state management)
+   - leva (dev-only debug GUI)
+   - maath (animation math utilities)
+   - react-router-dom
+   - tailwindcss (for 2D UI panels/overlays)
+
+3. Backend dependencies:
+   - fastapi, uvicorn[standard]
+   - motor (async MongoDB driver), beanie (async ODM for MongoDB)
+   - python-jose[cryptography] (JWT), passlib[bcrypt]
+   - httpx (async HTTP for Wikipedia/Wikidata)
+   - python-multipart (file uploads)
+   - boto3 (S3 asset storage)
+   - redis (caching layer)
+
+4. Docker Compose services:
+   - mongo:7 (MongoDB)
+   - redis:7
+   - minio (S3-compatible object storage)
+   - backend (uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload)
+   - frontend (vite dev server on port 5173)
+
+5. Beanie ODM document model setup + init_beanie() on app startup.
+
+-----------------------------------------------------------
+PHASE 2: DATA MODEL & API
+-----------------------------------------------------------
+
+6. MongoDB collections (Beanie ODM documents):
+
+   users (collection)
+   ├── _id: ObjectId (auto)
+   ├── username: str (unique index)
+   ├── email: str (unique index)
+   ├── hashed_password: str
+   ├── role: str (viewer | editor | admin)
+   └── created_at: datetime
+
+   knowledge_nodes (collection)
+   ├── _id: ObjectId (auto)
+   ├── slug: str (unique index)
+   ├── title: str
+   ├── summary: str
+   ├── full_content: str (Markdown)
+   ├── wikidata_id: str (optional)
+   ├── wikipedia_url: str (optional)
+   ├── node_type: str (concept | object | process | person | place)
+   ├── properties: dict (flexible key-value: mass, atomic_number, etc.)
+   ├── tags: list[str]
+   ├── parent_id: ObjectId (optional, ref → knowledge_nodes)
+   ├── relations: list[{node_id: ObjectId, type: str}]  ← embedded edges
+   ├── created_by: ObjectId (ref → users)
+   └── created_at, updated_at: datetime
+
+   Note: relations are embedded in the document for fast reads.
+   For complex graph traversals, use MongoDB $graphLookup aggregation.
+
+   scenes (collection)
+   ├── _id: ObjectId (auto)
+   ├── slug: str (unique index)
+   ├── title: str
+   ├── description: str
+   ├── parent_scene_id: ObjectId (optional, ref → scenes)
+   ├── environment: dict (hdri, ambient_light, fog settings)
+   ├── camera_defaults: dict (position, target, fov, near, far)
+   ├── zoom_depth: int (0 = top-level)
+   └── objects: list[SceneObject]  ← embedded sub-documents:
+       ├── id: str (UUID string for frontend reference)
+       ├── knowledge_node_id: ObjectId (ref → knowledge_nodes)
+       ├── asset_id: ObjectId (ref → assets, optional)
+       ├── transform: dict ({position, rotation, scale})
+       ├── interaction_type: str (zoom_into | popup_info | link_to_scene | none)
+       ├── zoom_target_scene_id: ObjectId (optional, ref → scenes)
+       ├── label: str
+       ├── highlight_color: str (optional)
+       └── lod_levels: list[{distance: float, asset_id: ObjectId}]
+
+   Note: scene_objects are embedded inside scenes since they are always
+   fetched together. This avoids a separate collection + join.
+
+   assets (collection)
+   ├── _id: ObjectId (auto)
+   ├── filename: str
+   ├── storage_url: str (S3/CDN URL)
+   ├── format: str (glb | gltf | ktx2 | hdr)
+   ├── file_size_bytes: int
+   ├── poly_count: int (optional)
+   ├── thumbnail_url: str
+   ├── license: str
+   ├── status: str (pending | approved | rejected)
+   ├── uploaded_by: ObjectId (ref → users)
+   └── created_at: datetime
+
+   Indexes:
+   - knowledge_nodes: text index on title + summary (full-text search)
+   - knowledge_nodes: index on tags, wikidata_id, slug
+   - scenes: index on slug, parent_scene_id
+   - assets: index on status, uploaded_by
+
+7. REST API endpoints (prefix: /api/v1/):
+
+   Auth:
+   - POST /auth/register
+   - POST /auth/login → JWT token
+   - POST /auth/refresh
+
+   Scenes:
+   - GET  /scenes/{slug}           → scene + scene_objects + knowledge_nodes + asset URLs
+   - GET  /scenes/{slug}/objects   → scene objects with transforms and metadata
+
+   Knowledge:
+   - GET    /knowledge-nodes/             → list/search (by slug, tag, wikidata_id)
+   - GET    /knowledge-nodes/{id}         → single node
+   - POST   /knowledge-nodes/             → create (auth required)
+   - PUT    /knowledge-nodes/{id}         → update (auth required)
+   - DELETE /knowledge-nodes/{id}         → delete (admin only)
+   - GET    /knowledge-nodes/{id}/relations → related nodes
+
+   Assets:
+   - POST /assets/upload                  → chunked GLB upload (auth required)
+   - GET  /assets/{id}                    → asset metadata + download URL
+
+   Wikipedia/Wikidata Proxy:
+   - GET  /wiki-proxy/search?q=...        → search Wikipedia, cache in Redis (24h TTL)
+   - GET  /wiki-proxy/entity/{wikidata_id} → Wikidata entity properties, cached
+
+-----------------------------------------------------------
+PHASE 3: 3D ENGINE CORE (FRONTEND)
+-----------------------------------------------------------
+
+8. SceneViewer component:
+   - Fetches scene data from GET /scenes/{slug}
+   - Renders Three.js scene graph via R3F
+   - Loads GLB assets via drei's useGLTF with React Suspense
+   - Places scene_objects at stored transforms
+   - Applies environment (HDRI, lighting, fog) from scene config
+
+9. Camera & zoom system (drei CameraControls):
+   - Orbit controls with per-scene constraints
+   - Click interactive object → smooth camera animation (fitToBox/setLookAt)
+   - For zoom_into objects: camera dolly + crossfade → load child scene
+   - Zustand state: { currentSceneSlug, zoomStack: [...], focusedObjectId }
+   - Breadcrumb/back navigation to zoom out
+
+10. Object interaction system:
+    - Hover: highlight mesh (emissive glow or outline), show floating label
+      (drei <Html> component)
+    - Click: expand 2D info panel showing knowledge node title, summary,
+      properties from document
+    - Double-click / "Go deeper" button: trigger zoom transition to child scene
+
+11. LOD system:
+    - drei <Detailed> component per scene_object
+    - Swap meshes by camera distance
+    - LOD variants generated at asset upload time (server-side)
+
+-----------------------------------------------------------
+PHASE 4: MVP SCENE — SCIENCE LAB
+-----------------------------------------------------------
+
+12. Scene hierarchy:
+
+    Scene 0 — "Science Lab" (depth 0)
+    └── Room with: microscope, periodic table poster, beakers, books, globe, PC
+
+    Scene 1 — "Microscope View" (depth 1, parent: lab)
+    └── Looking through lens: cell, bacteria, water molecules
+
+    Scene 2 — "Animal Cell" (depth 2, parent: microscope)
+    └── Nucleus, mitochondria, ribosomes, cell membrane
+
+    Scene 3 — "Nucleus Interior" (depth 3, parent: cell)
+    └── DNA double helix, chromosomes
+
+    Scene 4 — "DNA Molecule" (depth 4, parent: nucleus)
+    └── Procedural base pairs, individual atoms
+
+13. 3D asset sourcing:
+    - Lab room + furniture → Sketchfab CC-licensed GLB or AI-generated (Meshy/Tripo)
+    - Molecules/atoms → procedural R3F geometry (instanced spheres + cylinders,
+      parse PDB data from RCSB Protein Data Bank)
+    - Cell/organelles → AI-generated or free biology 3D models
+    - All assets processed: validate → meshopt compress → KTX2 textures → S3
+
+14. Seed database:
+    - ~20-30 knowledge nodes for the lab scene chain
+      (microscope, cell, mitochondria, DNA, hydrogen atom, etc.)
+    - Pull structured data from Wikidata to populate properties dict
+
+-----------------------------------------------------------
+PHASE 5: CONTENT PIPELINE
+-----------------------------------------------------------
+
+15. Wikipedia/Wikidata integration (backend WikiService):
+    - WikiService.search(query) → Wikipedia REST API → snippets
+    - WikiService.get_entity(wikidata_id) → Wikidata SPARQL → structured props
+    - Auto-populate knowledge_node properties from Wikidata
+      (e.g., atomic_number, mass for elements)
+    - All responses cached in Redis (24h TTL)
+
+16. Content editor UI (for authenticated editors):
+    - Side panel or modal with:
+      - Markdown editor for knowledge node content
+      - Key-value editor for properties dict
+      - Link/unlink Wikidata entities
+      - View edit history (add knowledge_node_revisions table later)
+
+-----------------------------------------------------------
+PHASE 6: ASSET EDITOR & COMMUNITY PIPELINE
+-----------------------------------------------------------
+
+17. Asset upload UI:
+    - Drag-and-drop GLB/GLTF upload for authenticated users
+    - Preview uploaded model in an inline 3D viewer
+
+18. Server-side asset processing:
+    - Validate file (magic bytes + gltf-validator)
+    - Convert to optimized GLB (meshopt + KTX2)
+    - Generate thumbnail (headless Three.js or trimesh)
+    - Store file in S3, metadata in DB
+
+19. Moderation queue:
+    - Assets enter "pending" status
+    - Admin/moderator panel: preview 3D asset, approve/reject
+
+20. Scene editor (stretch goal):
+    - Visual tool to place approved assets into scenes
+    - Set transforms via drei <TransformControls> (drag handles)
+    - Link objects to knowledge nodes
+    - Define interaction types (zoom_into, popup_info, etc.)
+    - Essentially a lightweight web-based 3D scene builder
+
+-----------------------------------------------------------
+PHASE 7: POLISH & PERFORMANCE
+-----------------------------------------------------------
+
+21. Postprocessing:
+    - Bloom for glowing interactive objects
+    - SSAO for depth perception
+    - Depth-of-field during zoom transitions
+    - All via @react-three/postprocessing
+
+22. Loading UX:
+    - Progress bar during scene loads (drei useProgress)
+    - Skeleton/wireframe preview while assets stream in
+    - Prefetch next zoom level in background (useGLTF.preload)
+
+23. Responsive design:
+    - Touch controls for mobile (pinch-to-zoom → zoom levels)
+    - 2D fallback for very low-end devices
+
+24. SEO/sharing:
+    - SSR a static summary page per knowledge node at /wiki/{slug}
+    - Link previews and search engine indexing work
+    - "View in 3D" button launches the immersive viewer
+
+-----------------------------------------------------------
+VERIFICATION
+-----------------------------------------------------------
+
+Phase 1: docker compose up starts all services
+  - Frontend: localhost:5173
+  - Backend: localhost:8000/docs (Swagger UI)
+  - Uvicorn logs show "Application startup complete"
+
+Phase 3: Render test scene with single GLB, orbit camera, click → info overlay
+
+Phase 4 (core MVP test):
+  - Navigate: lab → click microscope → cell view → click nucleus → DNA → atoms
+  - Smooth camera transitions between zoom levels
+  - Knowledge panels appear on hover/click
+  - Breadcrumb zoom-out works
+
+Phase 5: Search "mitochondria" → Wikipedia content + Wikidata properties appear
+
+Performance targets:
+  - 60fps on mid-range hardware
+  - <5s initial scene load
+  - <2s zoom transition
+
+-----------------------------------------------------------
+KEY DECISIONS
+-----------------------------------------------------------
+
+- Uvicorn as the ASGI server for FastAPI (uvicorn[standard] with uvloop)
+- meshopt over Draco for GLB compression (20KB decoder vs 300KB, faster)
+- MongoDB as the database — natural fit for flexible/nested documents
+  (scenes embed their objects, knowledge nodes embed relations)
+  Use $graphLookup for traversals; Beanie ODM for async Python access
+- Scene-based zoom (discrete scenes per depth level, not continuous)
+- zustand over Redux (lighter, R3F-idiomatic)
+- No LLM integration for now — content is manual + Wikipedia/Wikidata
+- Docker Compose for dev; cloud deployment deferred until MVP validated
