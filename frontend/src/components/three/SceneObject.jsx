@@ -3,55 +3,87 @@ import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import useSceneStore from '../../stores/sceneStore.js'
+import {
+  MicroscopeModel,
+  BeakerModel,
+  GlobeModel,
+  ComputerModel,
+  BookshelfModel,
+  PeriodicTableModel,
+  CellModel,
+  NucleusModel,
+  MitochondriaModel,
+  DNAModel,
+  AtomModel,
+} from './models/index.js'
 
-// Generate a procedural shape based on the object label for visual variety
-function getGeometry(label) {
+// Map object labels to detailed 3D model components
+function getModelComponent(label) {
   const l = (label || '').toLowerCase()
-  if (l.includes('microscope')) return <cylinderGeometry args={[0.15, 0.3, 1.5, 16]} />
-  if (l.includes('beaker')) return <cylinderGeometry args={[0.25, 0.2, 0.6, 12]} />
-  if (l.includes('globe')) return <sphereGeometry args={[0.6, 24, 24]} />
-  if (l.includes('computer') || l.includes('pc')) return <boxGeometry args={[0.8, 0.5, 0.6]} />
-  if (l.includes('bookshelf')) return <boxGeometry args={[1.2, 1.8, 0.4]} />
-  if (l.includes('periodic')) return <boxGeometry args={[2, 1.5, 0.05]} />
-  if (l.includes('cell')) return <sphereGeometry args={[1.2, 24, 24]} />
-  if (l.includes('nucleus')) return <sphereGeometry args={[0.8, 24, 24]} />
-  if (l.includes('mitochond')) return <capsuleGeometry args={[0.3, 0.8, 8, 16]} />
-  if (l.includes('dna')) return <torusKnotGeometry args={[0.6, 0.1, 128, 16, 2, 3]} />
-  if (l.includes('atom') || l.includes('hydrogen')) return <icosahedronGeometry args={[0.3, 2]} />
-  return <boxGeometry args={[0.8, 0.8, 0.8]} />
+  if (l.includes('microscope')) return MicroscopeModel
+  if (l.includes('beaker')) return BeakerModel
+  if (l.includes('globe')) return GlobeModel
+  if (l.includes('computer') || l.includes('pc')) return ComputerModel
+  if (l.includes('bookshelf')) return BookshelfModel
+  if (l.includes('periodic')) return PeriodicTableModel
+  if (l.includes('animal') && l.includes('cell')) return CellModel
+  if (l.includes('nucleus')) return NucleusModel
+  if (l.includes('mitochond')) return MitochondriaModel
+  if (l.includes('dna')) return DNAModel
+  if (l.includes('atom') || l.includes('hydrogen')) return AtomModel
+  return null
 }
 
-function getColor(highlightColor, label) {
+function getHighlightColor(highlightColor, label) {
   if (highlightColor) return highlightColor
   const l = (label || '').toLowerCase()
-  if (l.includes('microscope')) return '#aabbcc'
+  if (l.includes('microscope')) return '#00ff88'
   if (l.includes('cell')) return '#88ccaa'
   if (l.includes('dna')) return '#ff6644'
+  if (l.includes('nucleus')) return '#aa66ff'
+  if (l.includes('atom')) return '#4488ff'
   return '#667788'
 }
 
+// Fallback for objects without a dedicated model
+function FallbackModel({ hovered, label }) {
+  const color = getHighlightColor(null, label)
+  return (
+    <mesh castShadow>
+      <boxGeometry args={[0.6, 0.6, 0.6]} />
+      <meshStandardMaterial
+        color={hovered ? '#ffffff' : color}
+        emissive={hovered ? color : '#000000'}
+        emissiveIntensity={hovered ? 0.4 : 0}
+        roughness={0.4}
+        metalness={0.3}
+      />
+    </mesh>
+  )
+}
+
 export default function SceneObject({ obj, knowledgeNode, asset }) {
-  const meshRef = useRef()
+  const groupRef = useRef()
   const [hovered, setHovered] = useState(false)
-  const { setFocusedObject, setSelectedObject, zoomInto, focusedObjectId, selectedObjectId } = useSceneStore()
+  const { setFocusedObject, setSelectedObject, selectedObjectId } = useSceneStore()
 
   const isSelected = selectedObjectId === obj.id
-  const baseColor = getColor(obj.highlight_color, obj.label)
+  const baseColor = getHighlightColor(obj.highlight_color, obj.label)
+  const ModelComponent = useMemo(() => getModelComponent(obj.label), [obj.label])
 
-  // Animate on hover
+  // Hover scale animation
   useFrame((state, delta) => {
-    if (!meshRef.current) return
-    const scale = hovered ? 1.08 : 1.0
-    meshRef.current.scale.lerp(
-      new THREE.Vector3(scale, scale, scale).multiply(
-        new THREE.Vector3(...obj.transform.scale)
+    if (!groupRef.current) return
+    const targetScale = hovered ? 1.05 : 1.0
+    const s = groupRef.current.scale
+    s.lerp(
+      new THREE.Vector3(
+        targetScale * obj.transform.scale[0],
+        targetScale * obj.transform.scale[1],
+        targetScale * obj.transform.scale[2],
       ),
       0.1
     )
-    // Subtle rotation for visual interest
-    if (hovered) {
-      meshRef.current.rotation.y += delta * 0.3
-    }
   })
 
   const handlePointerOver = (e) => {
@@ -70,40 +102,37 @@ export default function SceneObject({ obj, knowledgeNode, asset }) {
 
   const handleClick = (e) => {
     e.stopPropagation()
-    if (obj.interaction_type === 'zoom_into' && obj.zoom_target_scene_id) {
-      // Find the target scene slug — we need to look it up
-      // For now, we handle this via the info panel's "Go Deeper" button
-      setSelectedObject(obj.id)
-    } else {
-      setSelectedObject(obj.id)
-    }
+    setSelectedObject(obj.id)
   }
 
   return (
-    <group position={obj.transform.position} rotation={obj.transform.rotation}>
-      <mesh
-        ref={meshRef}
-        castShadow
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-        onClick={handleClick}
-      >
-        {getGeometry(obj.label)}
-        <meshStandardMaterial
-          color={hovered ? '#ffffff' : baseColor}
-          emissive={hovered ? baseColor : '#000000'}
-          emissiveIntensity={hovered ? 0.4 : 0}
-          roughness={0.4}
-          metalness={0.3}
-          transparent={obj.label.toLowerCase().includes('cell')}
-          opacity={obj.label.toLowerCase().includes('cell') ? 0.7 : 1}
-        />
-      </mesh>
+    <group
+      ref={groupRef}
+      position={obj.transform.position}
+      rotation={obj.transform.rotation}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
+      onClick={handleClick}
+    >
+      {/* Render detailed model or fallback */}
+      {ModelComponent ? (
+        <ModelComponent hovered={hovered} />
+      ) : (
+        <FallbackModel hovered={hovered} label={obj.label} />
+      )}
+
+      {/* Selection ring */}
+      {isSelected && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+          <ringGeometry args={[0.8, 0.9, 32]} />
+          <meshBasicMaterial color={baseColor} transparent opacity={0.6} side={THREE.DoubleSide} />
+        </mesh>
+      )}
 
       {/* Floating label on hover */}
       {hovered && (
         <Html
-          position={[0, 1.2, 0]}
+          position={[0, 1.8, 0]}
           center
           style={{
             pointerEvents: 'none',
@@ -111,19 +140,28 @@ export default function SceneObject({ obj, knowledgeNode, asset }) {
           }}
         >
           <div style={{
-            background: 'rgba(0,0,0,0.8)',
+            background: 'rgba(0,0,0,0.85)',
             color: '#fff',
-            padding: '4px 12px',
-            borderRadius: '6px',
+            padding: '6px 14px',
+            borderRadius: '8px',
             fontSize: '13px',
             fontWeight: '500',
             whiteSpace: 'nowrap',
-            border: `1px solid ${baseColor}40`,
-            backdropFilter: 'blur(8px)',
+            border: `1px solid ${baseColor}50`,
+            backdropFilter: 'blur(10px)',
+            boxShadow: `0 0 12px ${baseColor}30`,
           }}>
             {obj.label}
             {obj.interaction_type === 'zoom_into' && (
-              <span style={{ color: '#00ff88', marginLeft: 6, fontSize: 11 }}>⬇ zoom</span>
+              <span style={{
+                color: '#00ff88',
+                marginLeft: 8,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.5px',
+              }}>
+                ZOOM IN ↓
+              </span>
             )}
           </div>
         </Html>
