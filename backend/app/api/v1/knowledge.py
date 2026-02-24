@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from typing import Optional
 from datetime import datetime, timezone
+from pydantic import BaseModel
 
 from app.core.security import require_auth, require_admin, get_current_user
 from app.models.user import User
@@ -106,3 +107,47 @@ async def get_relations(node_id: str):
     if not node:
         raise HTTPException(status_code=404, detail="Knowledge node not found")
     return {"node_id": str(node.id), "slug": node.slug, "relations": node.relations}
+
+
+class ContentUpdateBody(BaseModel):
+    full_content: str
+
+
+@router.put("/{node_id}/content")
+async def update_content(node_id: str, body: ContentUpdateBody):
+    """Update the text content of a knowledge node (no auth for local dev)."""
+    node = await KnowledgeNode.find_one(KnowledgeNode.slug == node_id)
+    if not node:
+        from beanie import PydanticObjectId
+        try:
+            node = await KnowledgeNode.get(PydanticObjectId(node_id))
+        except Exception:
+            pass
+    if not node:
+        raise HTTPException(status_code=404, detail="Knowledge node not found")
+
+    node.full_content = body.full_content
+    node.updated_at = datetime.now(timezone.utc)
+    await node.save()
+    return {"slug": node.slug, "updated": True}
+
+
+@router.get("/{node_id}/content")
+async def get_content(node_id: str):
+    """Get the text content of a knowledge node."""
+    node = await KnowledgeNode.find_one(KnowledgeNode.slug == node_id)
+    if not node:
+        from beanie import PydanticObjectId
+        try:
+            node = await KnowledgeNode.get(PydanticObjectId(node_id))
+        except Exception:
+            pass
+    if not node:
+        raise HTTPException(status_code=404, detail="Knowledge node not found")
+    return {
+        "slug": node.slug,
+        "title": node.title,
+        "summary": node.summary,
+        "full_content": node.full_content,
+        "wikipedia_url": node.wikipedia_url,
+    }

@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.knowledge_node import KnowledgeNode
 from app.models.scene import Scene
 from app.models.asset import Asset
+from app.models.model3d import Model3D
 
 
 async def init_db():
@@ -13,5 +14,5 @@ async def init_db():
     client = AsyncIOMotorClient(settings.mongo_url)
     await init_beanie(
         database=client[settings.mongo_db],
-        document_models=[User, KnowledgeNode, Scene, Asset],
+        document_models=[User, KnowledgeNode, Scene, Asset, Model3D],
     )

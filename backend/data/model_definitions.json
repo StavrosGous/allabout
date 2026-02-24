@@ -1,0 +1,922 @@
+[
+  {
+    "slug": "microscope",
+    "name": "Optical Microscope",
+    "category": "lab_equipment",
+    "description": "A detailed optical microscope with eyepiece, objectives, stage, and focus knobs.",
+    "tags": ["science", "lab", "optics"],
+    "default_animation": null,
+    "parts": [
+      {
+        "type": "light",
+        "name": "hover_glow",
+        "lightType": "point",
+        "position": [0, 1.2, 0],
+        "color": "#00ff88",
+        "intensity": 0,
+        "distance": 3,
+        "animation": { "type": "hover_glow", "hoverIntensity": 0.5, "speed": 3 }
+      },
+      {
+        "type": "mesh",
+        "name": "base",
+        "geometry": { "type": "cylinder", "args": [0.55, 0.6, 0.12, 32] },
+        "material": { "type": "standard", "color": "#2a2a2e", "metalness": 0.85, "roughness": 0.2 },
+        "position": [0, 0.06, 0],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "pillar",
+        "geometry": { "type": "box", "args": [0.12, 1.2, 0.12] },
+        "material": { "type": "standard", "color": "#2a2a2e", "metalness": 0.85, "roughness": 0.2 },
+        "position": [0, 0.7, -0.3],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "arm",
+        "geometry": { "type": "box", "args": [0.1, 0.08, 0.35] },
+        "material": { "type": "standard", "color": "#2a2a2e", "metalness": 0.85, "roughness": 0.2 },
+        "position": [0, 1.3, -0.15],
+        "rotation": [0.3, 0, 0],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "stage",
+        "geometry": { "type": "cylinder", "args": [0.35, 0.35, 0.04, 32] },
+        "material": { "type": "standard", "color": "#c0c0c8", "metalness": 0.95, "roughness": 0.1 },
+        "position": [0, 0.55, 0.05],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "stage_clip_l",
+        "geometry": { "type": "box", "args": [0.06, 0.02, 0.12] },
+        "material": { "type": "standard", "color": "#c0c0c8", "metalness": 0.95, "roughness": 0.1 },
+        "position": [0.15, 0.58, 0.05],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "stage_clip_r",
+        "geometry": { "type": "box", "args": [0.06, 0.02, 0.12] },
+        "material": { "type": "standard", "color": "#c0c0c8", "metalness": 0.95, "roughness": 0.1 },
+        "position": [-0.15, 0.58, 0.05],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "condenser",
+        "geometry": { "type": "cylinder", "args": [0.12, 0.08, 0.12, 16] },
+        "material": { "type": "standard", "color": "#111115", "metalness": 0.3, "roughness": 0.7 },
+        "position": [0, 0.42, 0.05],
+        "castShadow": true
+      },
+      {
+        "type": "group",
+        "name": "knob_left",
+        "position": [-0.22, 0.7, -0.3],
+        "children": [
+          {
+            "type": "mesh",
+            "geometry": { "type": "cylinder", "args": [0.08, 0.08, 0.06, 16] },
+            "material": { "type": "standard", "color": "#111115", "metalness": 0.3, "roughness": 0.7 },
+            "rotation": [0, 0, 1.5708],
+            "castShadow": true
+          },
+          {
+            "type": "mesh",
+            "geometry": { "type": "cylinder", "args": [0.05, 0.05, 0.04, 16] },
+            "material": { "type": "standard", "color": "#2a2a2e", "metalness": 0.85, "roughness": 0.2 },
+            "position": [-0.05, 0, 0],
+            "rotation": [0, 0, 1.5708],
+            "castShadow": true
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "name": "knob_right",
+        "position": [0.22, 0.7, -0.3],
+        "children": [
+          {
+            "type": "mesh",
+            "geometry": { "type": "cylinder", "args": [0.08, 0.08, 0.06, 16] },
+            "material": { "type": "standard", "color": "#111115", "metalness": 0.3, "roughness": 0.7 },
+            "rotation": [0, 0, 1.5708],
+            "castShadow": true
+          },
+          {
+            "type": "mesh",
+            "geometry": { "type": "cylinder", "args": [0.05, 0.05, 0.04, 16] },
+            "material": { "type": "standard", "color": "#2a2a2e", "metalness": 0.85, "roughness": 0.2 },
+            "position": [0.05, 0, 0],
+            "rotation": [0, 0, 1.5708],
+            "castShadow": true
+          }
+        ]
+      },
+      {
+        "type": "mesh",
+        "name": "nosepiece",
+        "geometry": { "type": "cylinder", "args": [0.1, 0.14, 0.06, 6] },
+        "material": { "type": "standard", "color": "#c0c0c8", "metalness": 0.95, "roughness": 0.1 },
+        "position": [0, 0.75, 0.05],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "objective_1",
+        "geometry": { "type": "cylinder", "args": [0.03, 0.036, 0.12, 12] },
+        "material": { "type": "standard", "color": "#c0c0c8", "metalness": 0.95, "roughness": 0.1 },
+        "position": [-0.1, 0.66, 0.05],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "objective_2",
+        "geometry": { "type": "cylinder", "args": [0.025, 0.03, 0.16, 12] },
+        "material": { "type": "standard", "color": "#c0c0c8", "metalness": 0.95, "roughness": 0.1 },
+        "position": [0, 0.64, 0.15],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "objective_3",
+        "geometry": { "type": "cylinder", "args": [0.02, 0.024, 0.22, 12] },
+        "material": { "type": "standard", "color": "#c0c0c8", "metalness": 0.95, "roughness": 0.1 },
+        "position": [0.1, 0.61, 0.05],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "body_tube",
+        "geometry": { "type": "cylinder", "args": [0.06, 0.06, 0.5, 16] },
+        "material": { "type": "standard", "color": "#2a2a2e", "metalness": 0.85, "roughness": 0.2 },
+        "position": [0, 1.1, 0],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "eyepiece",
+        "geometry": { "type": "cylinder", "args": [0.07, 0.05, 0.12, 16] },
+        "material": { "type": "standard", "color": "#111115", "metalness": 0.3, "roughness": 0.7 },
+        "position": [0, 1.4, 0],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "eyepiece_lens",
+        "geometry": { "type": "circle", "args": [0.065, 24] },
+        "material": { "type": "standard", "color": "#aaddff", "metalness": 0.1, "roughness": 0.05, "transparent": true, "opacity": 0.6 },
+        "position": [0, 1.46, 0]
+      }
+    ]
+  },
+
+  {
+    "slug": "beaker",
+    "name": "Laboratory Beaker",
+    "category": "lab_equipment",
+    "description": "A borosilicate glass beaker with graduated markings and blue liquid inside.",
+    "tags": ["chemistry", "glassware", "lab"],
+    "default_animation": null,
+    "parts": [
+      {
+        "type": "mesh",
+        "name": "body",
+        "geometry": {
+          "type": "lathe",
+          "points": [[0,0],[0.24,0],[0.25,0.02],[0.25,0.55],[0.27,0.58],[0.28,0.6],[0.26,0.6],[0.23,0.58],[0.23,0.02],[0,0.02]],
+          "segments": 32
+        },
+        "material": { "type": "standard", "color": "#ddeeff", "metalness": 0, "roughness": 0.05, "transparent": true, "opacity": 0.3, "side": "double" },
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "liquid",
+        "geometry": { "type": "cylinder", "args": [0.22, 0.22, 0.5, 24] },
+        "material": { "type": "standard", "color": "#22aaff", "metalness": 0, "roughness": 0.2, "transparent": true, "opacity": 0.6 },
+        "position": [0, 0.28, 0],
+        "castShadow": true,
+        "animation": { "type": "sine_offset", "axis": "y", "base": 0.28, "amplitude": 0.005, "speed": 1.5 }
+      },
+      {
+        "type": "mesh",
+        "name": "liquid_surface",
+        "geometry": { "type": "circle", "args": [0.22, 24] },
+        "material": { "type": "standard", "color": "#44bbff", "transparent": true, "opacity": 0.5 },
+        "position": [0, 0.53, 0],
+        "rotation": [-1.5708, 0, 0]
+      },
+      {
+        "type": "mesh",
+        "name": "mark_1",
+        "geometry": { "type": "box", "args": [0.005, 0.008, 0.08] },
+        "material": { "type": "standard", "color": "#ffffff", "transparent": true, "opacity": 0.4 },
+        "position": [0.252, 0.12, 0]
+      },
+      {
+        "type": "mesh",
+        "name": "mark_2",
+        "geometry": { "type": "box", "args": [0.005, 0.008, 0.08] },
+        "material": { "type": "standard", "color": "#ffffff", "transparent": true, "opacity": 0.4 },
+        "position": [0.252, 0.22, 0]
+      },
+      {
+        "type": "mesh",
+        "name": "mark_3",
+        "geometry": { "type": "box", "args": [0.005, 0.008, 0.08] },
+        "material": { "type": "standard", "color": "#ffffff", "transparent": true, "opacity": 0.4 },
+        "position": [0.252, 0.32, 0]
+      },
+      {
+        "type": "mesh",
+        "name": "mark_4",
+        "geometry": { "type": "box", "args": [0.005, 0.008, 0.08] },
+        "material": { "type": "standard", "color": "#ffffff", "transparent": true, "opacity": 0.4 },
+        "position": [0.252, 0.42, 0]
+      },
+      {
+        "type": "mesh",
+        "name": "bottom_disc",
+        "geometry": { "type": "circle", "args": [0.24, 24] },
+        "material": { "type": "standard", "color": "#ddeeff", "transparent": true, "opacity": 0.15, "side": "double" },
+        "position": [0, 0.005, 0],
+        "rotation": [-1.5708, 0, 0]
+      }
+    ]
+  },
+
+  {
+    "slug": "globe",
+    "name": "Earth Globe",
+    "category": "lab_equipment",
+    "description": "A rotating globe on a brass stand with continents, latitude/longitude lines and axis rod.",
+    "tags": ["geography", "earth", "model"],
+    "default_animation": { "type": "rotate", "axis": "y", "speed": 0.1, "hoverSpeed": 0.4, "target": "globe_sphere" },
+    "parts": [
+      {
+        "type": "mesh",
+        "name": "stand_base",
+        "geometry": { "type": "cylinder", "args": [0.3, 0.35, 0.06, 24] },
+        "material": { "type": "standard", "color": "#998866", "metalness": 0.8, "roughness": 0.2 },
+        "position": [0, -0.2, 0],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "stand_pillar",
+        "geometry": { "type": "cylinder", "args": [0.03, 0.04, 0.6, 12] },
+        "material": { "type": "standard", "color": "#998866", "metalness": 0.8, "roughness": 0.2 },
+        "position": [0, 0.1, 0],
+        "castShadow": true
+      },
+      {
+        "type": "mesh",
+        "name": "meridian_ring",
+        "geometry": { "type": "torus", "args": [0.65, 0.015, 8, 48, 3.14159] },
+        "material": { "type": "standard", "color": "#998866", "metalness": 0.8, "roughness": 0.2 },
+        "position": [0, 0.55, 0],
+        "castShadow": true
+      },
+      {
+        "type": "group",
+        "name": "globe_sphere",
+        "position": [0, 0.55, 0],
+        "rotation": [0.4, 0, 0],
+        "animation": { "type": "rotate", "axis": "y", "speed": 0.1, "hoverSpeed": 0.4 },
+        "children": [
+          {
+            "type": "mesh",
+            "name": "ocean",
+            "geometry": { "type": "sphere", "args": [0.6, 48, 48] },
+            "material": { "type": "standard", "color": "#1a5599", "metalness": 0.1, "roughness": 0.4 },
+            "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "continent_na",
+            "geometry": { "type": "sphere", "args": [0.18, 8, 8] },
+            "material": { "type": "standard", "color": "#3d8c40", "roughness": 0.8 },
+            "position": [-0.1, 0.35, 0.45]
+          },
+          {
+            "type": "mesh", "name": "continent_sa",
+            "geometry": { "type": "sphere", "args": [0.14, 8, 8] },
+            "material": { "type": "standard", "color": "#4d9c44", "roughness": 0.8 },
+            "position": [0.1, -0.05, 0.55]
+          },
+          {
+            "type": "mesh", "name": "continent_af",
+            "geometry": { "type": "sphere", "args": [0.2, 8, 8] },
+            "material": { "type": "standard", "color": "#6d8c30", "roughness": 0.8 },
+            "position": [0.35, 0.15, 0.42]
+          },
+          {
+            "type": "mesh", "name": "continent_eu",
+            "geometry": { "type": "sphere", "args": [0.1, 6, 6] },
+            "material": { "type": "standard", "color": "#5d9c50", "roughness": 0.8 },
+            "position": [0.2, 0.42, 0.35]
+          },
+          {
+            "type": "mesh", "name": "continent_as",
+            "geometry": { "type": "sphere", "args": [0.25, 8, 8] },
+            "material": { "type": "standard", "color": "#4d7c34", "roughness": 0.8 },
+            "position": [0.45, 0.3, -0.2]
+          },
+          {
+            "type": "mesh", "name": "continent_au",
+            "geometry": { "type": "sphere", "args": [0.1, 6, 6] },
+            "material": { "type": "standard", "color": "#8d8c40", "roughness": 0.8 },
+            "position": [0.4, -0.25, -0.35]
+          },
+          {
+            "type": "mesh",
+            "name": "axis_rod",
+            "geometry": { "type": "cylinder", "args": [0.01, 0.01, 1.4, 6] },
+            "material": { "type": "standard", "color": "#998866", "metalness": 0.8, "roughness": 0.2 }
+          },
+          {
+            "type": "generate",
+            "name": "latitude_lines",
+            "generator": "latitude_rings",
+            "params": { "latitudes": [-60, -30, 0, 30, 60], "radius": 0.605, "tubeRadius": 0.004, "color": "#ffffff", "opacity": 0.2 }
+          },
+          {
+            "type": "generate",
+            "name": "longitude_lines",
+            "generator": "longitude_rings",
+            "params": { "count": 6, "radius": 0.605, "tubeRadius": 0.004, "color": "#ffffff", "opacity": 0.15 }
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "slug": "computer",
+    "name": "Desktop Computer",
+    "category": "lab_equipment",
+    "description": "A desktop PC with tower case, monitor, keyboard, and mouse.",
+    "tags": ["technology", "computing"],
+    "default_animation": null,
+    "parts": [
+      {
+        "type": "group",
+        "name": "tower",
+        "position": [-0.6, 0.3, 0],
+        "children": [
+          {
+            "type": "mesh", "name": "case_body",
+            "geometry": { "type": "box", "args": [0.2, 0.55, 0.45] },
+            "material": { "type": "standard", "color": "#1a1a22", "metalness": 0.4, "roughness": 0.6 },
+            "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "front_panel",
+            "geometry": { "type": "box", "args": [0.005, 0.53, 0.43] },
+            "material": { "type": "standard", "color": "#252530", "metalness": 0.3, "roughness": 0.5 },
+            "position": [0.101, 0, 0]
+          },
+          {
+            "type": "mesh", "name": "power_btn",
+            "geometry": { "type": "cylinder", "args": [0.015, 0.015, 0.005, 12] },
+            "material": { "type": "standard", "color": "#555555", "emissive": "#222222", "emissiveIntensity": 0.8 },
+            "position": [0.105, 0.22, 0],
+            "animation": { "type": "hover_emissive", "hoverColor": "#00ff88", "hoverIntensity": 0.8 }
+          },
+          {
+            "type": "mesh", "name": "led",
+            "geometry": { "type": "sphere", "args": [0.006, 8, 8] },
+            "material": { "type": "standard", "color": "#00ff44", "emissive": "#00ff44", "emissiveIntensity": 1 },
+            "position": [0.105, 0.19, 0]
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "name": "monitor",
+        "position": [0.1, 0, 0],
+        "children": [
+          {
+            "type": "mesh", "name": "stand_base",
+            "geometry": { "type": "box", "args": [0.3, 0.02, 0.18] },
+            "material": { "type": "standard", "color": "#888898", "metalness": 0.9, "roughness": 0.15 },
+            "position": [0, 0.02, 0], "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "stand_neck",
+            "geometry": { "type": "box", "args": [0.04, 0.3, 0.04] },
+            "material": { "type": "standard", "color": "#888898", "metalness": 0.9, "roughness": 0.15 },
+            "position": [0, 0.18, -0.04], "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "bezel",
+            "geometry": { "type": "box", "args": [0.65, 0.42, 0.03] },
+            "material": { "type": "standard", "color": "#1a1a22", "metalness": 0.4, "roughness": 0.6 },
+            "position": [0, 0.48, 0], "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "screen",
+            "geometry": { "type": "plane", "args": [0.58, 0.34] },
+            "material": { "type": "standard", "color": "#112244", "emissive": "#1a3a6a", "emissiveIntensity": 0.4, "roughness": 0.3 },
+            "position": [0, 0.49, 0.016],
+            "animation": { "type": "hover_emissive", "hoverColor": "#1a3a6a", "hoverIntensity": 0.8, "speed": 5 }
+          },
+          {
+            "type": "generate",
+            "name": "code_lines",
+            "generator": "grid_items",
+            "params": {
+              "count": 5,
+              "positions": [[-0.12,0.57,0.017],[-0.07,0.52,0.017],[-0.12,0.47,0.017],[-0.07,0.42,0.017],[-0.12,0.37,0.017]],
+              "sizes": [[0.2,0.008,0.001],[0.25,0.008,0.001],[0.15,0.008,0.001],[0.22,0.008,0.001],[0.18,0.008,0.001]],
+              "material": { "type": "standard", "color": "#44ff88", "emissive": "#44ff88", "emissiveIntensity": 0.6 }
+            }
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "name": "keyboard",
+        "position": [0.1, 0.01, 0.3],
+        "children": [
+          {
+            "type": "mesh", "name": "kb_base",
+            "geometry": { "type": "box", "args": [0.45, 0.015, 0.15] },
+            "material": { "type": "standard", "color": "#333340", "metalness": 0.1, "roughness": 0.7 },
+            "castShadow": true
+          },
+          {
+            "type": "generate",
+            "name": "keys",
+            "generator": "keyboard_keys",
+            "params": { "rows": 4, "cols": 12, "keySize": [0.028, 0.006, 0.026], "spacing": 0.035, "rowSpacing": 0.033, "startX": -0.19, "startZ": -0.05, "y": 0.014, "color": "#444450" }
+          },
+          {
+            "type": "mesh", "name": "spacebar",
+            "geometry": { "type": "box", "args": [0.15, 0.006, 0.026] },
+            "material": { "type": "standard", "color": "#444450", "metalness": 0.1, "roughness": 0.8 },
+            "position": [0, 0.014, 0.06]
+          }
+        ]
+      },
+      {
+        "type": "group",
+        "name": "mouse",
+        "position": [0.42, 0.015, 0.3],
+        "children": [
+          {
+            "type": "mesh", "name": "mouse_body",
+            "geometry": { "type": "capsule", "args": [0.02, 0.04, 4, 8] },
+            "material": { "type": "standard", "color": "#333340", "metalness": 0.1, "roughness": 0.7 },
+            "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "scroll_wheel",
+            "geometry": { "type": "cylinder", "args": [0.005, 0.005, 0.012, 8] },
+            "material": { "type": "standard", "color": "#555560" },
+            "position": [0, 0.02, -0.01],
+            "rotation": [1.5708, 0, 0]
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "slug": "bookshelf",
+    "name": "Bookshelf",
+    "category": "furniture",
+    "description": "A wooden bookshelf with 4 shelves of colorful books and decorative items.",
+    "tags": ["furniture", "books"],
+    "default_animation": null,
+    "parts": [
+      {
+        "type": "mesh", "name": "left_panel",
+        "geometry": { "type": "box", "args": [0.04, 1.46, 0.22] },
+        "material": { "type": "standard", "color": "#3d2510", "roughness": 0.85 },
+        "position": [-0.48, 0.72, 0], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "right_panel",
+        "geometry": { "type": "box", "args": [0.04, 1.46, 0.22] },
+        "material": { "type": "standard", "color": "#3d2510", "roughness": 0.85 },
+        "position": [0.48, 0.72, 0], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "top_panel",
+        "geometry": { "type": "box", "args": [1.0, 0.03, 0.22] },
+        "material": { "type": "standard", "color": "#3d2510", "roughness": 0.85 },
+        "position": [0, 1.46, 0], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "back_panel",
+        "geometry": { "type": "box", "args": [0.92, 1.44, 0.02] },
+        "material": { "type": "standard", "color": "#2a1808", "roughness": 0.9 },
+        "position": [0, 0.72, -0.1], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "shelf_0",
+        "geometry": { "type": "box", "args": [0.92, 0.025, 0.22] },
+        "material": { "type": "standard", "color": "#5c3a1e", "roughness": 0.8 },
+        "position": [0, 0.02, 0], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "shelf_1",
+        "geometry": { "type": "box", "args": [0.92, 0.025, 0.22] },
+        "material": { "type": "standard", "color": "#5c3a1e", "roughness": 0.8 },
+        "position": [0, 0.38, 0], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "shelf_2",
+        "geometry": { "type": "box", "args": [0.92, 0.025, 0.22] },
+        "material": { "type": "standard", "color": "#5c3a1e", "roughness": 0.8 },
+        "position": [0, 0.74, 0], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "shelf_3",
+        "geometry": { "type": "box", "args": [0.92, 0.025, 0.22] },
+        "material": { "type": "standard", "color": "#5c3a1e", "roughness": 0.8 },
+        "position": [0, 1.1, 0], "castShadow": true
+      },
+      {
+        "type": "generate",
+        "name": "books",
+        "generator": "book_rows",
+        "params": {
+          "shelfYs": [0.02, 0.38, 0.74, 1.1],
+          "xRange": [-0.42, 0.42],
+          "booksPerShelf": [10, 9, 11, 8],
+          "bookColors": ["#8B0000","#006400","#00008B","#800080","#B8860B","#2F4F4F","#8B4513","#191970","#556B2F","#8B008B","#CC5500","#4A4A6A","#A0522D","#2E8B57","#6A5ACD"]
+        }
+      },
+      {
+        "type": "group", "name": "plant",
+        "position": [0.2, 1.49, 0],
+        "children": [
+          {
+            "type": "mesh", "name": "pot",
+            "geometry": { "type": "cylinder", "args": [0.03, 0.025, 0.06, 8] },
+            "material": { "type": "standard", "color": "#aa6633", "roughness": 0.8 },
+            "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "plant_ball",
+            "geometry": { "type": "sphere", "args": [0.04, 8, 8] },
+            "material": { "type": "standard", "color": "#228833", "roughness": 0.8 },
+            "position": [0, 0.06, 0]
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "slug": "periodic-table",
+    "name": "Periodic Table of Elements",
+    "category": "lab_equipment",
+    "description": "A wall-mounted periodic table chart with color-coded element categories.",
+    "tags": ["chemistry", "elements"],
+    "default_animation": null,
+    "parts": [
+      {
+        "type": "mesh", "name": "board",
+        "geometry": { "type": "box", "args": [1.96, 1.0, 0.02] },
+        "material": { "type": "standard", "color": "#1a1a2a", "metalness": 0.1, "roughness": 0.8 },
+        "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "frame",
+        "geometry": { "type": "box", "args": [2.0, 1.05, 0.015] },
+        "material": { "type": "standard", "color": "#333340", "metalness": 0.5, "roughness": 0.4 },
+        "position": [0, 0, -0.005]
+      },
+      {
+        "type": "generate",
+        "name": "elements",
+        "generator": "periodic_table_cells",
+        "params": {
+          "cellW": 0.095,
+          "cellH": 0.11,
+          "gap": 0.008,
+          "categoryColors": {
+            "alkali": "#ff4444", "alkaline": "#ff8844", "transition": "#4488ff",
+            "postTransition": "#44bb88", "metalloid": "#88aa44", "nonmetal": "#44ddaa",
+            "halogen": "#ddaa44", "noble": "#aa44dd", "lanthanide": "#ff66aa", "actinide": "#ff88cc"
+          },
+          "grid": [
+            ["nonmetal",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"noble"],
+            ["alkali","alkaline",null,null,null,null,null,null,null,null,null,null,"metalloid","nonmetal","nonmetal","nonmetal","halogen","noble"],
+            ["alkali","alkaline",null,null,null,null,null,null,null,null,null,null,"postTransition","metalloid","nonmetal","nonmetal","halogen","noble"],
+            ["alkali","alkaline","transition","transition","transition","transition","transition","transition","transition","transition","transition","transition","postTransition","metalloid","metalloid","nonmetal","halogen","noble"],
+            ["alkali","alkaline","transition","transition","transition","transition","transition","transition","transition","transition","transition","transition","postTransition","postTransition","metalloid","metalloid","halogen","noble"],
+            ["alkali","alkaline","lanthanide","transition","transition","transition","transition","transition","transition","transition","transition","transition","postTransition","postTransition","postTransition","metalloid","halogen","noble"],
+            ["alkali","alkaline","actinide","transition","transition","transition","transition","transition","transition","transition","transition","transition","postTransition","postTransition","postTransition","postTransition","halogen","noble"]
+          ]
+        }
+      }
+    ]
+  },
+
+  {
+    "slug": "animal-cell",
+    "name": "Animal Cell",
+    "category": "biology",
+    "description": "A translucent animal cell with nucleus, mitochondria, ER, golgi apparatus, ribosomes, and lysosomes.",
+    "tags": ["biology", "cell", "microscopy"],
+    "default_animation": { "type": "pulse", "amplitude": 0.02, "speed": 0.5 },
+    "parts": [
+      {
+        "type": "mesh", "name": "outer_membrane",
+        "geometry": { "type": "sphere", "args": [1.2, 48, 48] },
+        "material": { "type": "physical", "color": "#88ccaa", "transparent": true, "opacity": 0.15, "roughness": 0.3, "side": "double", "depthWrite": false },
+        "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "inner_membrane",
+        "geometry": { "type": "sphere", "args": [1.18, 32, 32] },
+        "material": { "type": "physical", "color": "#66aa88", "transparent": true, "opacity": 0.08, "roughness": 0.5, "side": "back" }
+      },
+      {
+        "type": "group", "name": "organelles",
+        "animation": { "type": "rotate", "axis": "y", "speed": 0.001 },
+        "children": [
+          {
+            "type": "mesh", "name": "nucleus",
+            "geometry": { "type": "sphere", "args": [0.45, 32, 32] },
+            "material": { "type": "physical", "color": "#553366", "transparent": true, "opacity": 0.6, "roughness": 0.4, "metalness": 0.1 },
+            "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "nucleolus",
+            "geometry": { "type": "sphere", "args": [0.15, 16, 16] },
+            "material": { "type": "standard", "color": "#883388", "roughness": 0.6 },
+            "position": [0.1, 0.05, 0.1]
+          },
+          {
+            "type": "mesh", "name": "mito_1",
+            "geometry": { "type": "capsule", "args": [1, 2.5, 8, 12] },
+            "material": { "type": "standard", "color": "#44aa44", "roughness": 0.5, "metalness": 0.1 },
+            "position": [0.7, 0.2, 0.3], "rotation": [0.5, 0.3, 0], "scale": [0.15, 0.08, 0.08],
+            "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "mito_2",
+            "geometry": { "type": "capsule", "args": [1, 2.5, 8, 12] },
+            "material": { "type": "standard", "color": "#44aa44", "roughness": 0.5 },
+            "position": [-0.6, -0.3, 0.5], "rotation": [0, 0.8, 0.3], "scale": [0.12, 0.07, 0.07]
+          },
+          {
+            "type": "mesh", "name": "mito_3",
+            "geometry": { "type": "capsule", "args": [1, 2.5, 8, 12] },
+            "material": { "type": "standard", "color": "#44aa44", "roughness": 0.5 },
+            "position": [0.3, -0.5, -0.6], "rotation": [0.2, 0, 0.7], "scale": [0.13, 0.07, 0.07]
+          },
+          {
+            "type": "mesh", "name": "mito_4",
+            "geometry": { "type": "capsule", "args": [1, 2.5, 8, 12] },
+            "material": { "type": "standard", "color": "#44aa44", "roughness": 0.5 },
+            "position": [-0.4, 0.5, -0.4], "rotation": [0.3, 1.2, 0], "scale": [0.1, 0.06, 0.06]
+          },
+          {
+            "type": "group", "name": "golgi",
+            "position": [-0.6, 0.1, -0.2], "rotation": [0.3, 0.5, 0],
+            "children": [
+              { "type": "mesh", "geometry": { "type": "cylinder", "args": [0.12, 0.12, 0.015, 16] }, "material": { "type": "standard", "color": "#cc8844", "transparent": true, "opacity": 0.6, "roughness": 0.4 }, "position": [0, -0.06, 0] },
+              { "type": "mesh", "geometry": { "type": "cylinder", "args": [0.11, 0.11, 0.015, 16] }, "material": { "type": "standard", "color": "#cc8844", "transparent": true, "opacity": 0.6, "roughness": 0.4 }, "position": [0, -0.02, 0] },
+              { "type": "mesh", "geometry": { "type": "cylinder", "args": [0.10, 0.10, 0.015, 16] }, "material": { "type": "standard", "color": "#cc8844", "transparent": true, "opacity": 0.6, "roughness": 0.4 }, "position": [0, 0.02, 0] },
+              { "type": "mesh", "geometry": { "type": "cylinder", "args": [0.09, 0.09, 0.015, 16] }, "material": { "type": "standard", "color": "#cc8844", "transparent": true, "opacity": 0.6, "roughness": 0.4 }, "position": [0, 0.06, 0] }
+            ]
+          },
+          {
+            "type": "generate", "name": "ribosomes",
+            "generator": "scatter_sphere",
+            "params": { "count": 40, "radius": 0.95, "innerRadius": 0.5, "size": 0.02, "color": "#ff9966", "roughness": 0.8 }
+          },
+          {
+            "type": "mesh", "name": "lyso_1",
+            "geometry": { "type": "sphere", "args": [0.08, 12, 12] },
+            "material": { "type": "standard", "color": "#885522", "roughness": 0.6 },
+            "position": [0.5, -0.3, 0.5], "castShadow": true
+          },
+          {
+            "type": "mesh", "name": "lyso_2",
+            "geometry": { "type": "sphere", "args": [0.08, 12, 12] },
+            "material": { "type": "standard", "color": "#885522", "roughness": 0.6 },
+            "position": [-0.8, 0.3, 0.1]
+          },
+          {
+            "type": "mesh", "name": "lyso_3",
+            "geometry": { "type": "sphere", "args": [0.08, 12, 12] },
+            "material": { "type": "standard", "color": "#885522", "roughness": 0.6 },
+            "position": [0.1, 0.6, -0.7]
+          }
+        ]
+      },
+      {
+        "type": "light", "name": "cytoplasm_glow",
+        "lightType": "point", "color": "#88ffaa", "intensity": 0.2, "distance": 2.5,
+        "animation": { "type": "hover_glow", "hoverIntensity": 0.6 }
+      }
+    ]
+  },
+
+  {
+    "slug": "nucleus",
+    "name": "Cell Nucleus",
+    "category": "biology",
+    "description": "Inside the cell nucleus: nuclear envelope with pores, nucleolus, and chromatin network.",
+    "tags": ["biology", "cell", "genetics"],
+    "default_animation": null,
+    "parts": [
+      {
+        "type": "mesh", "name": "outer_envelope",
+        "geometry": { "type": "sphere", "args": [0.82, 48, 48] },
+        "material": { "type": "physical", "color": "#665588", "transparent": true, "opacity": 0.2, "roughness": 0.3, "side": "double", "depthWrite": false },
+        "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "inner_envelope",
+        "geometry": { "type": "sphere", "args": [0.78, 48, 48] },
+        "material": { "type": "physical", "color": "#775599", "transparent": true, "opacity": 0.12, "roughness": 0.4, "side": "back" }
+      },
+      {
+        "type": "generate", "name": "nuclear_pores",
+        "generator": "scatter_sphere_surface",
+        "params": { "count": 20, "radius": 0.81, "shape": "torus", "shapeArgs": [0.03, 0.008, 6, 8], "color": "#aaaacc", "roughness": 0.5, "metalness": 0.2 }
+      },
+      {
+        "type": "mesh", "name": "nucleolus",
+        "geometry": { "type": "sphere", "args": [0.25, 24, 24] },
+        "material": { "type": "standard", "color": "#993388", "roughness": 0.5, "metalness": 0.1 },
+        "position": [0.15, 0.1, 0], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "nucleolus_inner",
+        "geometry": { "type": "sphere", "args": [0.12, 16, 16] },
+        "material": { "type": "standard", "color": "#bb44aa", "roughness": 0.4 },
+        "position": [0.18, 0.12, 0.05]
+      },
+      {
+        "type": "generate", "name": "chromatin",
+        "generator": "chromatin_network",
+        "params": { "count": 12, "radiusRange": [0.3, 0.6], "torusRadiusRange": [0.08, 0.14], "tubeRadius": 0.015, "colors": ["#6644aa", "#4422aa"] },
+        "animation": { "type": "rotate", "axis": "y", "speed": 0.002 }
+      },
+      {
+        "type": "mesh", "name": "lamina",
+        "geometry": { "type": "sphere", "args": [0.76, 24, 24] },
+        "material": { "type": "standard", "color": "#8877aa", "wireframe": true, "transparent": true, "opacity": 0.08 }
+      },
+      {
+        "type": "light", "name": "inner_glow",
+        "lightType": "point", "color": "#aa66ff", "intensity": 0.3, "distance": 2,
+        "animation": { "type": "hover_glow", "hoverIntensity": 0.8 }
+      }
+    ]
+  },
+
+  {
+    "slug": "mitochondria",
+    "name": "Mitochondria",
+    "category": "biology",
+    "description": "A mitochondrion with outer/inner membranes, cristae folds, matrix, mtDNA ring, and ATP synthase.",
+    "tags": ["biology", "cell", "organelle", "energy"],
+    "default_animation": { "type": "sine_rotation", "axis": "z", "amplitude": 0.1, "speed": 0.5 },
+    "parts": [
+      {
+        "type": "mesh", "name": "outer_membrane",
+        "geometry": { "type": "capsule", "args": [0.35, 1.0, 16, 24] },
+        "material": { "type": "physical", "color": "#44aa55", "transparent": true, "opacity": 0.3, "roughness": 0.3, "side": "double", "depthWrite": false },
+        "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "inner_membrane",
+        "geometry": { "type": "capsule", "args": [0.3, 0.9, 12, 20] },
+        "material": { "type": "physical", "color": "#55cc66", "transparent": true, "opacity": 0.2, "roughness": 0.4, "side": "double", "depthWrite": false }
+      },
+      {
+        "type": "generate", "name": "cristae",
+        "generator": "cristae_folds",
+        "params": { "count": 6, "xRange": [-0.5, 0.4], "width": 0.5, "color": "#66dd77", "opacity": 0.5 }
+      },
+      {
+        "type": "mesh", "name": "matrix",
+        "geometry": { "type": "capsule", "args": [0.28, 0.85, 8, 12] },
+        "material": { "type": "standard", "color": "#88ee99", "transparent": true, "opacity": 0.06 }
+      },
+      {
+        "type": "mesh", "name": "mtdna",
+        "geometry": { "type": "torus", "args": [0.06, 0.01, 8, 16] },
+        "material": { "type": "standard", "color": "#ffaa44", "roughness": 0.5 },
+        "position": [0, 0.2, 0], "rotation": [1.047, 0, 0]
+      },
+      {
+        "type": "generate", "name": "ribosomes",
+        "generator": "scatter_cylinder",
+        "params": { "count": 15, "radius": 0.2, "height": 0.8, "size": 0.012, "color": "#ffcc66", "roughness": 0.8 }
+      },
+      {
+        "type": "generate", "name": "atp_synthase",
+        "generator": "atp_synthase_ring",
+        "params": { "count": 8, "radius": 0.3, "yRange": [-0.4, 0.4], "stalkRadius": 0.008, "stalkHeight": 0.04, "headRadius": 0.015, "stalkColor": "#aacc33", "headColor": "#ccee44" }
+      },
+      {
+        "type": "light", "name": "glow",
+        "lightType": "point", "color": "#44ff66", "intensity": 0.15, "distance": 1.5,
+        "animation": { "type": "hover_glow", "hoverIntensity": 0.5 }
+      }
+    ]
+  },
+
+  {
+    "slug": "dna",
+    "name": "DNA Double Helix",
+    "category": "molecular",
+    "description": "A DNA double helix with sugar-phosphate backbone strands, color-coded base pairs (A-T, G-C), and hydrogen bonds.",
+    "tags": ["biology", "genetics", "molecule"],
+    "default_animation": { "type": "rotate", "axis": "y", "speed": 0.15, "hoverSpeed": 0.5 },
+    "parts": [
+      {
+        "type": "generate",
+        "name": "helix",
+        "generator": "dna_helix",
+        "params": {
+          "numSteps": 60,
+          "height": 4,
+          "radius": 0.4,
+          "turns": 2.5,
+          "backboneRadius": 0.04,
+          "strandColors": ["#ff6644", "#4488ff"],
+          "basePairColors": [["#ff4444","#4488ff"], ["#44cc44","#ffcc00"]],
+          "sugarSize": 0.05,
+          "bondSize": 0.035
+        }
+      },
+      {
+        "type": "light", "name": "glow",
+        "lightType": "point", "color": "#ff8844", "intensity": 0.2, "distance": 3,
+        "animation": { "type": "hover_glow", "hoverIntensity": 0.6 }
+      }
+    ]
+  },
+
+  {
+    "slug": "atom",
+    "name": "Hydrogen Atom (Bohr Model)",
+    "category": "molecular",
+    "description": "A Bohr model atom with proton/neutron nucleus, electron orbits, animated electrons, and probability cloud.",
+    "tags": ["chemistry", "atom", "element"],
+    "default_animation": null,
+    "parts": [
+      {
+        "type": "mesh", "name": "proton",
+        "geometry": { "type": "sphere", "args": [0.12, 16, 16] },
+        "material": { "type": "standard", "color": "#ff4444", "roughness": 0.4, "metalness": 0.2 },
+        "position": [0.03, 0.02, 0], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "neutron",
+        "geometry": { "type": "sphere", "args": [0.11, 16, 16] },
+        "material": { "type": "standard", "color": "#888888", "roughness": 0.4, "metalness": 0.2 },
+        "position": [-0.03, -0.02, 0.03], "castShadow": true
+      },
+      {
+        "type": "mesh", "name": "nuclear_glow",
+        "geometry": { "type": "sphere", "args": [0.18, 16, 16] },
+        "material": { "type": "standard", "color": "#ff6644", "transparent": true, "opacity": 0.15, "emissive": "#ff6644", "emissiveIntensity": 0.3 },
+        "animation": { "type": "hover_emissive", "hoverColor": "#ff6644", "hoverIntensity": 0.8 }
+      },
+      {
+        "type": "generate", "name": "orbits_and_electrons",
+        "generator": "electron_orbits",
+        "params": {
+          "orbits": [
+            { "radius": 0.5, "tilt": [0, 0, 0.3], "color": "#4488ff", "speed": 1.5 },
+            { "radius": 0.85, "tilt": [1.2, 0, 0], "color": "#44ccff", "speed": 2.0 },
+            { "radius": 1.2, "tilt": [0.6, 0.8, 0], "color": "#88aaff", "speed": 2.5 }
+          ],
+          "ringRadius": 0.005,
+          "electronSize": 0.04,
+          "ringOpacity": 0.2,
+          "hoverOpacity": 0.4
+        }
+      },
+      {
+        "type": "generate", "name": "probability_cloud",
+        "generator": "scatter_sphere",
+        "params": { "count": 200, "radius": 0.8, "innerRadius": 0.2, "size": 0.008, "color": "#6688ff", "opacity": 0.08, "distribution": "gaussian" },
+        "animation": { "type": "rotate", "axis": "y", "speed": 0.003 }
+      },
+      {
+        "type": "light", "name": "center_glow",
+        "lightType": "point", "color": "#ff8844", "intensity": 0.4, "distance": 2,
+        "animation": { "type": "hover_glow", "hoverIntensity": 1.0 }
+      }
+    ]
+  }
+]

@@ -1,38 +1,9 @@
-import { useRef, useState, useMemo } from 'react'
+import { useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import useSceneStore from '../../stores/sceneStore.js'
-import {
-  MicroscopeModel,
-  BeakerModel,
-  GlobeModel,
-  ComputerModel,
-  BookshelfModel,
-  PeriodicTableModel,
-  CellModel,
-  NucleusModel,
-  MitochondriaModel,
-  DNAModel,
-  AtomModel,
-} from './models/index.js'
-
-// Map object labels to detailed 3D model components
-function getModelComponent(label) {
-  const l = (label || '').toLowerCase()
-  if (l.includes('microscope')) return MicroscopeModel
-  if (l.includes('beaker')) return BeakerModel
-  if (l.includes('globe')) return GlobeModel
-  if (l.includes('computer') || l.includes('pc')) return ComputerModel
-  if (l.includes('bookshelf')) return BookshelfModel
-  if (l.includes('periodic')) return PeriodicTableModel
-  if (l.includes('animal') && l.includes('cell')) return CellModel
-  if (l.includes('nucleus')) return NucleusModel
-  if (l.includes('mitochond')) return MitochondriaModel
-  if (l.includes('dna')) return DNAModel
-  if (l.includes('atom') || l.includes('hydrogen')) return AtomModel
-  return null
-}
+import ProceduralModel from './ProceduralModel.jsx'
 
 function getHighlightColor(highlightColor, label) {
   if (highlightColor) return highlightColor
@@ -62,14 +33,13 @@ function FallbackModel({ hovered, label }) {
   )
 }
 
-export default function SceneObject({ obj, knowledgeNode, asset }) {
+export default function SceneObject({ obj, knowledgeNode, asset, modelData }) {
   const groupRef = useRef()
   const [hovered, setHovered] = useState(false)
   const { setFocusedObject, setSelectedObject, selectedObjectId } = useSceneStore()
 
   const isSelected = selectedObjectId === obj.id
   const baseColor = getHighlightColor(obj.highlight_color, obj.label)
-  const ModelComponent = useMemo(() => getModelComponent(obj.label), [obj.label])
 
   // Hover scale animation
   useFrame((state, delta) => {
@@ -114,9 +84,9 @@ export default function SceneObject({ obj, knowledgeNode, asset }) {
       onPointerOut={handlePointerOut}
       onClick={handleClick}
     >
-      {/* Render detailed model or fallback */}
-      {ModelComponent ? (
-        <ModelComponent hovered={hovered} />
+      {/* Render data-driven model or fallback */}
+      {modelData ? (
+        <ProceduralModel modelData={modelData} hovered={hovered} />
       ) : (
         <FallbackModel hovered={hovered} label={obj.label} />
       )}

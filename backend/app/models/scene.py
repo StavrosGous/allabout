@@ -20,6 +20,7 @@ class SceneObject(BaseModel):
     interaction_type: str = "none"  # zoom_into | popup_info | link_to_scene | none
     zoom_target_scene_id: Optional[str] = None
     label: str = ""
+    model_slug: Optional[str] = None  # ref to models collection
     highlight_color: Optional[str] = None
     lod_levels: List[Dict[str, Any]] = Field(default_factory=list)
 

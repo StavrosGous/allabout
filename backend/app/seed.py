@@ -1,9 +1,12 @@
 """Seed the database with a demo science lab scene + knowledge nodes."""
 import asyncio
+import json
 import uuid
+import pathlib
 from app.core.database import init_db
 from app.models.knowledge_node import KnowledgeNode
 from app.models.scene import Scene, SceneObject
+from app.models.model3d import Model3D
 
 
 KNOWLEDGE_NODES = [
@@ -120,6 +123,19 @@ async def seed():
     # Clear existing data
     await KnowledgeNode.delete_all()
     await Scene.delete_all()
+    await Model3D.delete_all()
+
+    # --- Seed 3D model definitions from JSON ---
+    data_dir = pathlib.Path(__file__).resolve().parent.parent / "data"
+    models_file = data_dir / "model_definitions.json"
+    if models_file.exists():
+        model_defs = json.loads(models_file.read_text())
+        for mdef in model_defs:
+            m = Model3D(**mdef)
+            await m.insert()
+            print(f"  ✓ 3D model: {m.name}")
+    else:
+        print("  ⚠ model_definitions.json not found, skipping 3D models")
 
     # Insert knowledge nodes
     node_map = {}
@@ -204,6 +220,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["microscope"].id),
             label="Microscope",
+            model_slug="microscope",
             transform={"position": [-2, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
             interaction_type="zoom_into",
             zoom_target_scene_id=str(micro_scene.id),
@@ -213,6 +230,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["periodic-table"].id),
             label="Periodic Table",
+            model_slug="periodic-table",
             transform={"position": [0, 2, -4], "rotation": [0, 0, 0], "scale": [2, 1.5, 0.1]},
             interaction_type="popup_info",
             highlight_color="#ffaa00",
@@ -221,6 +239,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["beaker"].id),
             label="Beaker",
+            model_slug="beaker",
             transform={"position": [1, 0.8, -1], "rotation": [0, 0, 0], "scale": [0.5, 0.5, 0.5]},
             interaction_type="popup_info",
             highlight_color="#00aaff",
@@ -229,6 +248,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["globe"].id),
             label="Globe",
+            model_slug="globe",
             transform={"position": [3, 1, 0], "rotation": [0, 0.3, 0], "scale": [1, 1, 1]},
             interaction_type="popup_info",
             highlight_color="#ff5500",
@@ -237,6 +257,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["desktop-computer"].id),
             label="Computer",
+            model_slug="computer",
             transform={"position": [3, 0.8, -3], "rotation": [0, -0.5, 0], "scale": [1, 1, 1]},
             interaction_type="popup_info",
             highlight_color="#aa00ff",
@@ -245,6 +266,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["bookshelf"].id),
             label="Bookshelf",
+            model_slug="bookshelf",
             transform={"position": [-4, 0, -3], "rotation": [0, 0.8, 0], "scale": [1, 2, 0.5]},
             interaction_type="popup_info",
             highlight_color="#ffff00",
@@ -258,6 +280,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["animal-cell"].id),
             label="Animal Cell",
+            model_slug="animal-cell",
             transform={"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [2, 2, 2]},
             interaction_type="zoom_into",
             zoom_target_scene_id=str(cell_scene.id),
@@ -272,6 +295,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["cell-nucleus"].id),
             label="Nucleus",
+            model_slug="nucleus",
             transform={"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1.5, 1.5, 1.5]},
             interaction_type="zoom_into",
             zoom_target_scene_id=str(nucleus_scene.id),
@@ -281,6 +305,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["mitochondria"].id),
             label="Mitochondria",
+            model_slug="mitochondria",
             transform={"position": [3, 0, 2], "rotation": [0.3, 0, 0], "scale": [0.8, 0.5, 0.5]},
             interaction_type="popup_info",
             highlight_color="#00ff00",
@@ -294,6 +319,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["dna"].id),
             label="DNA",
+            model_slug="dna",
             transform={"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
             interaction_type="zoom_into",
             zoom_target_scene_id=str(dna_scene.id),
@@ -308,6 +334,7 @@ async def seed():
             id=str(uuid.uuid4()),
             knowledge_node_id=str(node_map["hydrogen-atom"].id),
             label="Hydrogen Atom",
+            model_slug="atom",
             transform={"position": [1, 0, 0], "rotation": [0, 0, 0], "scale": [0.3, 0.3, 0.3]},
             interaction_type="popup_info",
             highlight_color="#ffffff",
@@ -317,6 +344,8 @@ async def seed():
 
     print(f"\n✓ Seeded {len(KNOWLEDGE_NODES)} knowledge nodes")
     print(f"✓ Seeded 5 scenes (lab → microscope → cell → nucleus → DNA)")
+    model_count = await Model3D.count()
+    print(f"✓ Seeded {model_count} 3D model definitions")
 
 
 if __name__ == "__main__":

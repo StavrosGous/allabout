@@ -201,6 +201,7 @@ export default function SceneContent({ sceneData }) {
           ? knowledge_nodes?.[obj.knowledge_node_id]
           : null
         const asset = obj.asset_id ? assets?.[obj.asset_id] : null
+        const modelData = obj.model_slug ? sceneData.models?.[obj.model_slug] : null
 
         return (
           <SceneObject
@@ -208,6 +209,7 @@ export default function SceneContent({ sceneData }) {
             obj={obj}
             knowledgeNode={knowledgeNode}
             asset={asset}
+            modelData={modelData}
           />
         )
       })}

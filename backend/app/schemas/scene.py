@@ -14,6 +14,7 @@ class SceneObjectSchema(BaseModel):
     interaction_type: str = "none"
     zoom_target_scene_id: Optional[str] = None
     label: str = ""
+    model_slug: Optional[str] = None
     highlight_color: Optional[str] = None
     lod_levels: List[Dict[str, Any]] = []
 
