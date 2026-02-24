@@ -106,47 +106,79 @@ async def fetch_wikipedia_and_store(slug: str, title: Optional[str] = Query(None
     # Fetch from Wikipedia
     search_title = title or node.title
     try:
-        # First get summary for URL
-        async with httpx.AsyncClient() as client:
-            summary_resp = await client.get(
-                f"{WIKIPEDIA_API}/page/summary/{search_title}",
-                headers={"User-Agent": settings.wiki_user_agent},
-                timeout=10,
-            )
         wiki_url = None
         actual_title = search_title
-        if summary_resp.status_code == 200:
-            summary_data = summary_resp.json()
-            wiki_url = summary_data.get("content_urls", {}).get("desktop", {}).get("page")
-            actual_title = summary_data.get("title", search_title)
-            # Also update summary if empty
-            if not node.summary and summary_data.get("extract"):
-                node.summary = summary_data["extract"]
-
-        # Then get full text
-        async with httpx.AsyncClient() as client:
-            text_resp = await client.get(
-                WIKIPEDIA_PARSE_API,
-                params={
-                    "action": "query",
-                    "titles": actual_title,
-                    "prop": "extracts",
-                    "explaintext": True,
-                    "format": "json",
-                },
-                headers={"User-Agent": settings.wiki_user_agent},
-                timeout=15,
-            )
-        if text_resp.status_code != 200:
-            raise HTTPException(status_code=502, detail="Wikipedia request failed")
-
-        text_data = text_resp.json()
-        pages = text_data.get("query", {}).get("pages", {})
         extract = ""
-        for page_id, page in pages.items():
-            if page_id != "-1":
-                extract = page.get("extract", "")
-                break
+
+        # Helper: try to get summary + full text for a given title
+        async def _try_fetch(t):
+            nonlocal wiki_url, actual_title, extract
+            async with httpx.AsyncClient() as client:
+                summary_resp = await client.get(
+                    f"{WIKIPEDIA_API}/page/summary/{t}",
+                    headers={"User-Agent": settings.wiki_user_agent},
+                    timeout=10,
+                )
+            if summary_resp.status_code == 200:
+                summary_data = summary_resp.json()
+                # Skip disambiguation pages
+                if summary_data.get("type") == "disambiguation":
+                    return False
+                wiki_url = summary_data.get("content_urls", {}).get("desktop", {}).get("page")
+                actual_title = summary_data.get("title", t)
+                if not node.summary and summary_data.get("extract"):
+                    node.summary = summary_data["extract"]
+            else:
+                return False
+
+            # Fetch full text
+            async with httpx.AsyncClient() as client:
+                text_resp = await client.get(
+                    WIKIPEDIA_PARSE_API,
+                    params={
+                        "action": "query",
+                        "titles": actual_title,
+                        "prop": "extracts",
+                        "explaintext": True,
+                        "format": "json",
+                    },
+                    headers={"User-Agent": settings.wiki_user_agent},
+                    timeout=15,
+                )
+            if text_resp.status_code != 200:
+                return False
+            text_data = text_resp.json()
+            pages = text_data.get("query", {}).get("pages", {})
+            for page_id, page in pages.items():
+                if page_id != "-1":
+                    extract = page.get("extract", "")
+                    break
+            return bool(extract)
+
+        # 1. Try the direct title
+        found = await _try_fetch(search_title)
+
+        # 2. If not found (disambiguation, 404, empty), do a Wikipedia search
+        if not found:
+            async with httpx.AsyncClient() as client:
+                search_resp = await client.get(
+                    WIKIPEDIA_PARSE_API,
+                    params={
+                        "action": "query",
+                        "list": "search",
+                        "srsearch": search_title,
+                        "format": "json",
+                        "srlimit": 3,
+                    },
+                    headers={"User-Agent": settings.wiki_user_agent},
+                    timeout=10,
+                )
+            if search_resp.status_code == 200:
+                sr_data = search_resp.json()
+                for sr in sr_data.get("query", {}).get("search", []):
+                    if await _try_fetch(sr["title"]):
+                        found = True
+                        break
 
         if not extract:
             raise HTTPException(status_code=404, detail=f"No Wikipedia article found for '{search_title}'")

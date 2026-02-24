@@ -56,7 +56,7 @@ export default function InfoPanel() {
   const handleFetchWiki = async () => {
     if (!kn?.slug) return
     setWikiLoading(true)
-    const result = await fetchWikiContent(kn.slug)
+    const result = await fetchWikiContent(kn.slug, kn.title)
     if (result?.full_content) {
       setWikiContent(result.full_content)
     }
