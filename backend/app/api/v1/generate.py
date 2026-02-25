@@ -4,11 +4,14 @@ Uses a Poe (Quora) API key with OpenAI-compatible chat completions format
 to generate Three.js-compatible model definitions and full scenes from natural language descriptions.
 """
 import json
+import logging
 import re
 import uuid
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 from app.models.scene import Scene, SceneObject
@@ -383,66 +386,254 @@ Return ONLY the JSON. No markdown, no explanation.\
 """
 
 
-async def _call_llm(system_prompt: str, user_message: str, max_tokens: int = 8000) -> str:
-    """Call the Poe API and return the text content."""
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        response = await client.post(
-            f"{settings.poe_api_base}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.poe_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": settings.poe_model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                "temperature": 0.7,
-                "max_tokens": max_tokens,
-                "stream": False,
-            },
-        )
+async def _call_llm(system_prompt: str, user_message: str, max_tokens: int = 8000, retries: int = 2) -> str:
+    """Call the Poe API and return the text content, with automatic retries."""
+    last_error = None
+    for attempt in range(1, retries + 1):
+        try:
+            logger.info("LLM call attempt %d/%d  model=%s  max_tokens=%d", attempt, retries, settings.poe_model, max_tokens)
+            clean_system = system_prompt.strip()
+            clean_user = user_message.strip()
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                response = await client.post(
+                    f"{settings.poe_api_base}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.poe_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": settings.poe_model,
+                        "messages": [
+                            {"role": "system", "content": clean_system},
+                            {"role": "user", "content": clean_user},
+                        ],
+                        "temperature": 0.7,
+                        "max_tokens": max_tokens,
+                        "stream": False,
+                    },
+                )
 
-        if response.status_code != 200:
-            detail = response.text[:500]
-            raise HTTPException(
-                status_code=502,
-                detail=f"LLM API returned {response.status_code}: {detail}",
-            )
+                if response.status_code != 200:
+                    detail = response.text[:500]
+                    logger.warning("LLM API returned %d on attempt %d: %s", response.status_code, attempt, detail)
+                    # Retry on 429 (rate-limit) or 5xx server errors
+                    if response.status_code in (429, 500, 502, 503) and attempt < retries:
+                        import asyncio
+                        await asyncio.sleep(2 * attempt)
+                        last_error = f"LLM API returned {response.status_code}: {detail}"
+                        continue
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"LLM API returned {response.status_code}: {detail}",
+                    )
 
-        data = response.json()
+                data = response.json()
 
-        content = None
-        if "choices" in data and len(data["choices"]) > 0:
-            content = data["choices"][0].get("message", {}).get("content", "")
-        elif "text" in data:
-            content = data["text"]
-        elif isinstance(data, str):
-            content = data
+                content = None
+                if "choices" in data and len(data["choices"]) > 0:
+                    content = data["choices"][0].get("message", {}).get("content", "")
+                elif "text" in data:
+                    content = data["text"]
+                elif isinstance(data, str):
+                    content = data
 
-        if not content:
-            raise HTTPException(status_code=502, detail="No content in LLM response")
+                if not content:
+                    logger.warning("Empty LLM response on attempt %d, keys=%s", attempt, list(data.keys()) if isinstance(data, dict) else type(data))
+                    if attempt < retries:
+                        import asyncio
+                        await asyncio.sleep(2)
+                        last_error = "No content in LLM response"
+                        continue
+                    raise HTTPException(status_code=502, detail="No content in LLM response")
 
-        return content
+                logger.info("LLM call succeeded on attempt %d, response length=%d", attempt, len(content))
+                return content
+
+        except httpx.TimeoutException:
+            logger.warning("LLM timeout on attempt %d", attempt)
+            if attempt < retries:
+                import asyncio
+                await asyncio.sleep(2 * attempt)
+                last_error = "LLM API request timed out"
+                continue
+            raise HTTPException(status_code=504, detail="LLM API request timed out after retries")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error in _call_llm attempt %d", attempt)
+            last_error = str(e)
+            if attempt < retries:
+                import asyncio
+                await asyncio.sleep(2)
+                continue
+            raise
+
+    raise HTTPException(status_code=502, detail=f"LLM call failed after {retries} attempts: {last_error}")
+
+
+def _fix_json(text: str) -> str:
+    """Attempt to fix common JSON syntax errors produced by LLMs."""
+    # Remove trailing commas before } or ]  (e.g.  {"a": 1,} )
+    text = re.sub(r',\s*([}\]])', r'\1', text)
+    # Remove single-line // comments (outside strings — best-effort)
+    text = re.sub(r'//[^\n]*', '', text)
+    # Fix missing commas between properties:  "value"\n  "key":  →  "value",\n  "key":
+    text = re.sub(
+        r'(\")\s*\n(\s*\")',
+        r'\1,\n\2',
+        text,
+    )
+    # Fix missing commas:  }\n  { or ]\n  [ or }\n  " or ]\n  "  etc.
+    text = re.sub(r'(\})\s*\n(\s*\{)', r'\1,\n\2', text)
+    text = re.sub(r'(\])\s*\n(\s*\[)', r'\1,\n\2', text)
+    text = re.sub(r'(\})\s*\n(\s*\")', r'\1,\n\2', text)
+    text = re.sub(r'(\])\s*\n(\s*\")', r'\1,\n\2', text)
+    # Fix: number or true/false/null followed by newline then "key":
+    text = re.sub(r'(\d)\s*\n(\s*\")', r'\1,\n\2', text)
+    text = re.sub(r'(true|false|null)\s*\n(\s*\")', r'\1,\n\2', text)
+    # Clean trailing commas one more time
+    text = re.sub(r',\s*([}\]])', r'\1', text)
+    return text
+
+
+def _close_truncated_json(text: str) -> str:
+    """Close unclosed brackets/braces in truncated JSON, respecting nesting order."""
+    # Strip trailing garbage after last complete value
+    # Remove trailing incomplete string literal
+    text = re.sub(r',\s*"[^"]*$', '', text)
+    # Remove trailing comma
+    text = re.sub(r',\s*$', '', text)
+    # Walk through to figure out the nesting stack
+    stack = []
+    in_string = False
+    escape = False
+    for ch in text:
+        if escape:
+            escape = False
+            continue
+        if ch == '\\' and in_string:
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch in ('{', '['):
+            stack.append('}' if ch == '{' else ']')
+        elif ch in ('}', ']'):
+            if stack and stack[-1] == ch:
+                stack.pop()
+    # Close in reverse order
+    return text + ''.join(reversed(stack))
 
 
 def _parse_json(text: str) -> dict:
-    """Parse JSON from LLM output, stripping markdown fences."""
+    """Parse JSON from LLM output, stripping markdown fences and fixing common errors."""
     cleaned = _clean_json_response(text)
+
+    # 1. Try direct parse
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        json_match = re.search(r'\{[\s\S]*\}', cleaned)
-        if json_match:
-            return json.loads(json_match.group())
-        raise HTTPException(status_code=502, detail="Failed to parse LLM output as JSON")
+        pass
+
+    # 2. Extract outermost { ... } and try
+    json_match = re.search(r'\{[\s\S]*\}', cleaned)
+    raw = json_match.group() if json_match else cleaned
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    # 3. Apply fixes and retry
+    fixed = _fix_json(raw)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # 4. Truncated JSON — the LLM may have hit max_tokens mid-object.
+    repaired = _close_truncated_json(fixed)
+    # Clean trailing commas one more time
+    repaired = re.sub(r',\s*([}\]])', r'\1', repaired)
+
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError:
+        pass
+
+    # 5. Last resort — apply fixes on the full cleaned text (not just {…} extraction)
+    fixed_full = _close_truncated_json(_fix_json(cleaned))
+    fixed_full = re.sub(r',\s*([}\]])', r'\1', fixed_full)
+    try:
+        return json.loads(fixed_full)
+    except json.JSONDecodeError as exc:
+        logger.error("JSON repair failed at char %d: %s\n--- first 500 chars ---\n%s",
+                      exc.pos or 0, exc.msg, repaired[:500])
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to parse LLM output as JSON: {exc.msg} at position {exc.pos}",
+        )
 
 
 def _slugify(text: str) -> str:
     """Convert text to a clean kebab-case slug."""
     slug = re.sub(r'[^a-z0-9-]', '-', text.lower().strip())
     return re.sub(r'-+', '-', slug).strip('-')
+
+
+def _sanitize_animation(value):
+    """Ensure default_animation is a dict or None.
+
+    LLMs sometimes return a bare string like 'rotate' instead of the
+    expected ``{"type": "rotate", ...}`` dict.  This helper normalises
+    such values so Pydantic validation won't fail.
+    """
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        return {"type": value.strip()}
+    return None
+
+
+def _sanitize_list(value, default=None):
+    """Ensure value is a list. Wrap strings/scalars, flatten bad types."""
+    if default is None:
+        default = []
+    if value is None:
+        return default
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        return [value] if value.strip() else default
+    return default
+
+
+def _sanitize_dict(value, default=None):
+    """Ensure value is a dict."""
+    if default is None:
+        default = {}
+    if isinstance(value, dict):
+        return value
+    return default
+
+
+def _sanitize_vec(value, length=3, default_val=0):
+    """Ensure value is a list of floats with the expected length."""
+    default = [default_val] * length
+    if not isinstance(value, (list, tuple)):
+        return default
+    try:
+        result = [float(v) for v in value[:length]]
+        while len(result) < length:
+            result.append(default_val)
+        return result
+    except (TypeError, ValueError):
+        return default
 
 
 # Stop-words to ignore when computing topic relativity
@@ -586,11 +777,12 @@ async def generate_scene(body: GenerateSceneRequest):
     )
 
     try:
-        content = await _call_llm(SCENE_SYSTEM_PROMPT, user_message, max_tokens=16384)
+        content = await _call_llm(SCENE_SYSTEM_PROMPT, user_message, max_tokens=8000)
         scene_data = _parse_json(content)
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Scene generation error for topic=%s", topic)
         raise HTTPException(status_code=500, detail=f"Scene generation error: {str(e)}")
 
     # Validate top-level structure
@@ -627,8 +819,8 @@ async def generate_scene(body: GenerateSceneRequest):
             title=kn.get("title", kn_slug),
             summary=kn.get("summary", ""),
             node_type=kn.get("node_type", "object"),
-            properties=kn.get("properties", {}),
-            tags=kn.get("tags", []),
+            properties=_sanitize_dict(kn.get("properties"), {}),
+            tags=_sanitize_list(kn.get("tags"), []),
         )
         await node.insert()
         kn_map[kn_slug] = str(node.id)
@@ -643,17 +835,21 @@ async def generate_scene(body: GenerateSceneRequest):
         if existing_model:
             model_slug_map[mdef.get("slug", m_slug)] = m_slug
             continue
-        model = Model3D(
-            slug=m_slug,
-            name=mdef.get("name", m_slug),
-            category=mdef.get("category", "ai-generated"),
-            parts=mdef.get("parts", []),
-            default_animation=mdef.get("default_animation"),
-            description=mdef.get("description", ""),
-            tags=mdef.get("tags", []),
-        )
-        await model.insert()
-        model_slug_map[mdef.get("slug", m_slug)] = m_slug
+        try:
+            model = Model3D(
+                slug=m_slug,
+                name=mdef.get("name", m_slug),
+                category=mdef.get("category", "ai-generated"),
+                parts=_sanitize_list(mdef.get("parts"), []),
+                default_animation=_sanitize_animation(mdef.get("default_animation")),
+                description=str(mdef.get("description", "")),
+                tags=_sanitize_list(mdef.get("tags"), []),
+            )
+            await model.insert()
+            model_slug_map[mdef.get("slug", m_slug)] = m_slug
+        except Exception as e:
+            logger.warning("Skipping model '%s' due to validation error: %s", m_slug, e)
+            continue
 
     # --- Build scene objects ---
     scene_objects = []
@@ -682,19 +878,23 @@ async def generate_scene(body: GenerateSceneRequest):
             idx = len(scene_objects) % len(model_slug_map)
             model_slug = list(model_slug_map.values())[idx]
 
-        pos = obj.get("position", [0, 1, 0])
-        rot = obj.get("rotation", [0, 0, 0])
-        scale = obj.get("scale", [1, 1, 1])
+        pos = _sanitize_vec(obj.get("position", [0, 1, 0]))
+        rot = _sanitize_vec(obj.get("rotation", [0, 0, 0]))
+        scale = _sanitize_vec(obj.get("scale", [1, 1, 1]), default_val=1)
 
-        scene_objects.append(SceneObject(
-            id=obj_id,
-            knowledge_node_id=kn_id,
-            label=obj.get("label", "Object"),
-            model_slug=model_slug,
-            transform={"position": pos, "rotation": rot, "scale": scale},
-            interaction_type=obj.get("interaction_type", "popup_info"),
-            highlight_color=obj.get("highlight_color", "#667788"),
-        ))
+        try:
+            scene_objects.append(SceneObject(
+                id=obj_id,
+                knowledge_node_id=kn_id,
+                label=str(obj.get("label", "Object")),
+                model_slug=model_slug,
+                transform={"position": pos, "rotation": rot, "scale": scale},
+                interaction_type=obj.get("interaction_type", "popup_info"),
+                highlight_color=obj.get("highlight_color", "#667788"),
+            ))
+        except Exception as e:
+            logger.warning("Skipping object '%s' due to validation error: %s", obj.get('label'), e)
+            continue
 
     # --- Create and save the scene ---
     cam = scene_def.get("camera_defaults", {})
@@ -870,20 +1070,27 @@ REFINE_SYSTEM_PROMPT = """\
 You are an elite 3D scene editor for an immersive educational knowledge platform.
 Given an EXISTING scene (JSON) and user feedback, output a COMPLETE REVISED scene JSON.
 
-You may:
-- Redesign model parts completely (fix proportions, add detail, improve materials)
-- Reposition, add, or remove objects
+CRITICAL: You MUST make meaningful, visible changes to the scene based on the feedback.
+If the user asks for "accuracy", "realism", or "detail" — you must REBUILD every model
+with significantly more parts, better proportions, and physically correct materials.
+Do NOT return the scene unchanged. The user expects to SEE a difference.
+
+You may and should:
+- Redesign model parts completely (fix proportions, add much more detail, improve materials)
+- Add 30-60% more parts to each model for realism
+- Reposition, add, or remove objects for better spatial layout
 - Modify geometry, materials, colors for any model part
-- Update knowledge node summaries and properties
-- Adjust camera and environment settings
+- Update knowledge node summaries with richer educational content
+- Adjust camera and environment for better presentation
 
 QUALITY STANDARDS (apply to ALL output):
-- Models: 25-70 parts, composed from primitives to look like real objects.
+- Models: 30-70 parts minimum, composed from primitives to look like real objects.
 - Use hierarchical GROUPs for functional sub-assemblies within models.
 - Materials: physically accurate (correct metalness/roughness for material type, use "physical" type for metals/glass).
 - Proportions: anatomically/mechanically correct.
 - Every model starts with a hover_glow light part.
 - No cartoonish colors — realistic palettes only.
+- When asked for realism: add surface details, bevels, seams, screws, labels, small imperfections.
 
 GEOMETRY TYPES:
 - "box": [w, h, d] | "sphere": [r, wSeg, hSeg] — 64,64 smooth
@@ -898,7 +1105,8 @@ MATERIAL REFERENCE:
 - Skin: #e8beac, metalness 0.0, roughness 0.7
 - Wood: metalness 0.0, roughness 0.85 | Rubber: metalness 0.0, roughness 0.95
 
-Keep unchanged objects mostly intact. Output COMPLETE scene JSON. No markdown, no explanation.\
+Output the COMPLETE revised scene JSON. Every model must be fully defined with all parts.
+Do NOT abbreviate or skip parts. No markdown, no explanation — ONLY the JSON object.\
 """
 
 
@@ -964,13 +1172,21 @@ async def refine_scene(body: RefineSceneRequest):
         if obj.knowledge_node_id and obj.knowledge_node_id in kn_map_existing:
             current_objects[i]["knowledge_node_slug"] = kn_map_existing[obj.knowledge_node_id].slug
 
-    # Fetch model definitions
+    # Fetch model definitions — send compact summaries (not all parts) to save tokens
     model_defs_existing = []
     if model_slugs_set:
         model_docs = await Model3D.find(
             {"slug": {"$in": list(model_slugs_set)}}
         ).to_list()
         for m in model_docs:
+            # Summarise parts: just type/name + geometry type for context
+            parts_summary = []
+            for p in (m.parts or [])[:5]:  # first 5 parts as sample
+                parts_summary.append({
+                    "type": p.get("type"),
+                    "name": p.get("name", ""),
+                    "geometry": p.get("geometry"),
+                })
             model_defs_existing.append({
                 "slug": m.slug,
                 "name": m.name,
@@ -978,7 +1194,8 @@ async def refine_scene(body: RefineSceneRequest):
                 "description": m.description,
                 "tags": m.tags,
                 "default_animation": m.default_animation,
-                "parts": m.parts,
+                "total_parts": len(m.parts or []),
+                "parts_sample": parts_summary,
             })
 
     current_scene_json = json.dumps({
@@ -998,17 +1215,19 @@ async def refine_scene(body: RefineSceneRequest):
     user_message = (
         f"Here is the CURRENT scene definition:\n\n{current_scene_json}\n\n"
         f"USER FEEDBACK: {feedback}\n\n"
-        f"Please output the REVISED complete scene JSON addressing the user's feedback. "
-        f"Keep the same slug. Fix any problems mentioned. "
-        f"Return ONLY the JSON object."
+        f"IMPORTANT: You must make real, visible changes based on the feedback above. "
+        f"Rebuild every model from scratch with full detail (30-70 parts each). "
+        f"The models section above only shows summaries — you must output COMPLETE new model definitions. "
+        f"Keep the same slug '{slug}'. Return ONLY the complete JSON object."
     )
 
     try:
-        content = await _call_llm(REFINE_SYSTEM_PROMPT, user_message, max_tokens=16384)
+        content = await _call_llm(REFINE_SYSTEM_PROMPT, user_message, max_tokens=8000)
         scene_data = _parse_json(content)
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Refine error for slug=%s", slug)
         raise HTTPException(status_code=500, detail=f"Refine error: {str(e)}")
 
     if "scene" not in scene_data or "objects" not in scene_data:
@@ -1033,8 +1252,8 @@ async def refine_scene(body: RefineSceneRequest):
             # Update existing node
             existing_kn.summary = kn.get("summary", existing_kn.summary)
             existing_kn.node_type = kn.get("node_type", existing_kn.node_type)
-            existing_kn.properties = kn.get("properties", existing_kn.properties)
-            existing_kn.tags = kn.get("tags", existing_kn.tags)
+            existing_kn.properties = _sanitize_dict(kn.get("properties"), existing_kn.properties)
+            existing_kn.tags = _sanitize_list(kn.get("tags"), existing_kn.tags)
             await existing_kn.save()
             kn_map[kn_slug] = str(existing_kn.id)
         else:
@@ -1043,8 +1262,8 @@ async def refine_scene(body: RefineSceneRequest):
                 title=kn.get("title", kn_slug),
                 summary=kn.get("summary", ""),
                 node_type=kn.get("node_type", "object"),
-                properties=kn.get("properties", {}),
-                tags=kn.get("tags", []),
+                properties=_sanitize_dict(kn.get("properties"), {}),
+                tags=_sanitize_list(kn.get("tags"), []),
             )
             await node.insert()
             kn_map[kn_slug] = str(node.id)
@@ -1060,25 +1279,29 @@ async def refine_scene(body: RefineSceneRequest):
         existing_model = await Model3D.find_one(Model3D.slug == m_slug)
         if existing_model:
             # Update the model in-place
-            existing_model.parts = mdef.get("parts", existing_model.parts)
+            existing_model.parts = _sanitize_list(mdef.get("parts"), existing_model.parts)
             existing_model.name = mdef.get("name", existing_model.name)
-            existing_model.description = mdef.get("description", existing_model.description)
-            existing_model.default_animation = mdef.get("default_animation")
-            existing_model.tags = mdef.get("tags", existing_model.tags)
+            existing_model.description = str(mdef.get("description", existing_model.description))
+            existing_model.default_animation = _sanitize_animation(mdef.get("default_animation"))
+            existing_model.tags = _sanitize_list(mdef.get("tags"), existing_model.tags)
             await existing_model.save()
             model_slug_map[mdef.get("slug", m_slug)] = m_slug
         else:
-            model = Model3D(
-                slug=m_slug,
-                name=mdef.get("name", m_slug),
-                category=mdef.get("category", "ai-generated"),
-                parts=mdef.get("parts", []),
-                default_animation=mdef.get("default_animation"),
-                description=mdef.get("description", ""),
-                tags=mdef.get("tags", []),
-            )
-            await model.insert()
-            model_slug_map[mdef.get("slug", m_slug)] = m_slug
+            try:
+                model = Model3D(
+                    slug=m_slug,
+                    name=mdef.get("name", m_slug),
+                    category=mdef.get("category", "ai-generated"),
+                    parts=_sanitize_list(mdef.get("parts"), []),
+                    default_animation=_sanitize_animation(mdef.get("default_animation")),
+                    description=str(mdef.get("description", "")),
+                    tags=_sanitize_list(mdef.get("tags"), []),
+                )
+                await model.insert()
+                model_slug_map[mdef.get("slug", m_slug)] = m_slug
+            except Exception as e:
+                logger.warning("Skipping model '%s' in refine due to validation error: %s", m_slug, e)
+                continue
 
     # Delete old models no longer used
     for old_ms in old_model_slugs - new_model_slugs:
@@ -1121,20 +1344,24 @@ async def refine_scene(body: RefineSceneRequest):
                 interaction = "zoom_into"
                 break
 
-        pos = obj.get("position", [0, 1, 0])
-        rot = obj.get("rotation", [0, 0, 0])
-        scale = obj.get("scale", [1, 1, 1])
+        pos = _sanitize_vec(obj.get("position", [0, 1, 0]))
+        rot = _sanitize_vec(obj.get("rotation", [0, 0, 0]))
+        scale = _sanitize_vec(obj.get("scale", [1, 1, 1]), default_val=1)
 
-        scene_objects.append(SceneObject(
-            id=obj_id,
-            knowledge_node_id=kn_id,
-            label=obj.get("label", "Object"),
-            model_slug=model_slug,
-            transform={"position": pos, "rotation": rot, "scale": scale},
-            interaction_type=interaction,
-            zoom_target_scene_id=zoom_target,
-            highlight_color=obj.get("highlight_color", "#667788"),
-        ))
+        try:
+            scene_objects.append(SceneObject(
+                id=obj_id,
+                knowledge_node_id=kn_id,
+                label=str(obj.get("label", "Object")),
+                model_slug=model_slug,
+                transform={"position": pos, "rotation": rot, "scale": scale},
+                interaction_type=interaction,
+                zoom_target_scene_id=zoom_target,
+                highlight_color=obj.get("highlight_color", "#667788"),
+            ))
+        except Exception as e:
+            logger.warning("Skipping object '%s' in refine due to validation error: %s", obj.get('label'), e)
+            continue
 
     # --- Update the existing scene in-place ---
     cam = scene_def.get("camera_defaults", existing.camera_defaults)

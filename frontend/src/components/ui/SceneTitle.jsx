@@ -4,9 +4,10 @@ import useEditorStore from '../../stores/editorStore.js'
 
 export default function SceneTitle() {
   const sceneData = useSceneStore((s) => s.sceneData)
-  const loadScene = useSceneStore((s) => s.loadScene)
+  const reloadScene = useSceneStore((s) => s.reloadScene)
   const refineScene = useEditorStore((s) => s.refineScene)
   const sceneRefining = useEditorStore((s) => s.sceneRefining)
+  const editorOpen = useEditorStore((s) => s.editorOpen)
   const [showRefine, setShowRefine] = useState(false)
   const [refineFeedback, setRefineFeedback] = useState('')
   const [refineError, setRefineError] = useState(null)
@@ -20,7 +21,8 @@ export default function SceneTitle() {
     if (result?.slug) {
       setShowRefine(false)
       setRefineFeedback('')
-      await loadScene(result.slug)
+      // Use reloadScene to re-fetch without touching the zoom stack
+      await reloadScene(result.slug)
     } else {
       setRefineError('Refinement failed. Try again.')
     }
@@ -30,7 +32,7 @@ export default function SceneTitle() {
     <div style={{
       position: 'absolute',
       bottom: 16,
-      left: 16,
+      left: editorOpen ? 352 : 16,
       zIndex: 100,
       background: 'rgba(10, 10, 20, 0.85)',
       backdropFilter: 'blur(12px)',
@@ -38,6 +40,7 @@ export default function SceneTitle() {
       borderRadius: 8,
       padding: '12px 16px',
       maxWidth: 420,
+      transition: 'left 0.2s ease',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <h1 style={{

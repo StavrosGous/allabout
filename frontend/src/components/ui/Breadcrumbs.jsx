@@ -1,13 +1,15 @@
 import useSceneStore from '../../stores/sceneStore.js'
+import useEditorStore from '../../stores/editorStore.js'
 
 export default function Breadcrumbs() {
   const { zoomStack, zoomOut, loadScene, goHome, sceneData } = useSceneStore()
+  const editorOpen = useEditorStore((s) => s.editorOpen)
 
   return (
     <div style={{
       position: 'absolute',
       top: 16,
-      left: sceneData ? 64 : 16,
+      left: editorOpen && sceneData ? 352 : (sceneData ? 64 : 16),
       zIndex: 100,
       display: 'flex',
       alignItems: 'center',

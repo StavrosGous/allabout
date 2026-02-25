@@ -32,6 +32,19 @@ const useSceneStore = create((set, get) => ({
     }
   },
 
+  // Re-fetch the current scene data without changing the zoom stack
+  reloadScene: async (slug) => {
+    set({ loading: true, error: null })
+    try {
+      const res = await fetch(`/api/v1/scenes/${slug}`)
+      if (!res.ok) throw new Error(`Scene "${slug}" not found`)
+      const data = await res.json()
+      set({ sceneData: data, loading: false })
+    } catch (err) {
+      set({ error: err.message, loading: false })
+    }
+  },
+
   // Zoom into a child scene
   zoomInto: async (targetSceneSlug) => {
     const { loadScene } = get()

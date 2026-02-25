@@ -17,7 +17,7 @@ export default function HomePage() {
       const res = await fetch('/api/v1/scenes/')
       if (res.ok) {
         const data = await res.json()
-        setScenes(data)
+        setScenes(Array.isArray(data) ? data : [])
       }
     } catch (err) {
       console.error('Failed to fetch scenes:', err)

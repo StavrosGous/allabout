@@ -25,12 +25,15 @@ class Settings(BaseSettings):
     wiki_user_agent: str = "AllAbout/0.1 (https://github.com/allabout)"
 
     # LLM (Poe / OpenAI-compatible API)
-    poe_api_key: str = ""
+    poe_api_key: str = "PHtlR8Z36gAm9GbOsmtx9AGYKu418JqpFsGpOg2xfJw"
     poe_api_base: str = "https://api.poe.com/v1"
-    poe_model: str = "claude-sonnet-4.5"
+    poe_model: str = "Gemini-2.0-Flash"
 
     # CORS
     backend_cors_origins: List[str] = ["http://localhost:5173"]
+
+    # Server
+    backend_port: int = 9000
 
     class Config:
         env_file = "../.env"

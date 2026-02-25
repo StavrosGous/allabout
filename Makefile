@@ -13,7 +13,7 @@ install-frontend:
 # ── Start backend + frontend for development ─────────────────
 dev:
 	@echo ""
-	@echo "  Starting backend (Uvicorn :8000) + frontend (Vite :5173)..."
+	@echo "  Starting backend (Uvicorn :$(or $(BACKEND_PORT),9000)) + frontend (Vite :5173)..."
 	@echo "  Make sure MongoDB is running on localhost:27017"
 	@echo ""
 	@$(MAKE) -j2 dev-backend dev-frontend
@@ -21,11 +21,11 @@ dev:
 # ── Backend (FastAPI + Uvicorn) ──────────────────────────────
 dev-backend:
 	cd backend && . .venv/bin/activate && \
-		uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+		uvicorn app.main:app --host 0.0.0.0 --port $(or $(BACKEND_PORT),9000) --reload
 
 # ── Frontend (Vite dev server) ───────────────────────────────
 dev-frontend:
-	cd frontend && npm run dev
+	cd frontend && VITE_API_PORT=$(or $(BACKEND_PORT),9000) npm run dev
 
 # ── Seed the database with demo data ────────────────────────
 seed:
