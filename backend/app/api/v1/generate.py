@@ -183,7 +183,7 @@ async def generate_model(body: GenerateModelRequest):
                         {"role": "user", "content": user_message},
                     ],
                     "temperature": 0.7,
-                    "max_tokens": 16384,
+                    "max_tokens": 8000,
                     "stream": False,
                 },
             )
